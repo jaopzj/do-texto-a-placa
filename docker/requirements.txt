@@ -1,0 +1,6 @@
+# Bibliotecas Python do projeto.
+# Depois do primeiro build que funcionar, fixe as versões (ex.: pydantic==2.x.y).
+skidl
+pydantic
+pyyaml
+pytest
