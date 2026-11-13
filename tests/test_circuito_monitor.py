@@ -172,3 +172,17 @@ def test_netlist_reprodutivel(tmp_path):
         texto = arquivo.read_text(encoding="utf-8")
         textos.append(re.sub(r'\(date "[^"]*"\)', "", texto))
     assert textos[0] == textos[1]
+
+
+def _estrutura(redes):
+    """Quais pinos estão ligados entre si, sem olhar os nomes das redes."""
+    return {frozenset(pinos) for pinos in redes.values()}
+
+
+def test_netlist_tem_a_estrutura_do_gabarito(netlist):
+    # O gabarito.net é a resposta certa usada nos evals (Marco 4). Nunca alterá-lo
+    # para fazer este teste passar: se ele falhar, o circuito.py mudou.
+    _, componentes, redes = netlist
+    _, componentes_gabarito, redes_gabarito = ler_netlist(PASTA / "gabarito.net")
+    assert componentes == componentes_gabarito
+    assert _estrutura(redes) == _estrutura(redes_gabarito)
