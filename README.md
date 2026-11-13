@@ -19,6 +19,8 @@ make imagem      # constrói a imagem Docker (a primeira vez demora)
 make configurar  # copia as tabelas de bibliotecas do KiCad para .home/ (uma vez só)
 make versao      # confere KiCad, Java, Python e Freerouting dentro do container
 make drc         # roda o DRC na placa de teste e salva o relatório em saida/
+make netlist     # gera a netlist da placa de referência (SKiDL)
+make testes      # roda os testes automáticos (pytest)
 make shell       # abre um terminal dentro do container
 ```
 

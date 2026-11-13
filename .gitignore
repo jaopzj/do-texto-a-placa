@@ -234,6 +234,11 @@ saida/
 .home/
 # Log e relatório de ERC que o SKiDL grava na pasta onde roda
 skidl_REPL.*
+# Arquivos auxiliares que o SKiDL grava ao rodar um circuito (log, ERC e biblioteca de cópia)
+*.erc
+*_sklib.py
+# Netlist gerada pelo "make netlist" (a fonte é o circuito.py)
+placas/monitor-umidade/monitor-umidade.net
 
 # --- Instruções locais do projeto (mantidas fora do Git) ---
 CLAUDE.md

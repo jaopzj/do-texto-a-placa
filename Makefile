@@ -25,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell configurar pcb rotear drc
+.PHONY: imagem versao shell configurar netlist testes pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -45,6 +45,14 @@ configurar:
 	mkdir -p .home/.config/kicad/10.0
 	$(RUN) cp /usr/share/kicad/template/fp-lib-table .home/.config/kicad/10.0/
 	$(RUN) cp /usr/share/kicad/template/sym-lib-table .home/.config/kicad/10.0/
+
+# Gera a netlist da placa de referência a partir do circuito em SKiDL. Marco 2 / Parte 4.
+netlist:
+	$(RUN) python placas/monitor-umidade/circuito.py
+
+# Roda os testes automáticos (pytest) dentro do container.
+testes:
+	$(RUN) python -m pytest tests/
 
 # Gera a placa a partir da netlist (Caminho A: kinet2pcb). Marco 1 / M1-2.
 pcb:

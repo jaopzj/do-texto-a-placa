@@ -18,3 +18,8 @@
 - Fiz: `.home/` como HOME do container (ignorada pelo Git), variáveis de bibliotecas no `Makefile` e o alvo `make configurar`; os 3 avisos `lib_footprint_issues` do DRC da placa de teste sumiram.
 - Aprendi: o SKiDL 3.0.0 (ferramenta `kicad10`) lê `KICAD10_SYMBOL_DIR`, e não `KICAD_SYMBOL_DIR`; as tabelas do KiCad 10 usam `${KICAD10_FOOTPRINT_DIR}` e `${KICAD10_SYMBOL_DIR}`, que o kicad-cli resolve sozinho, mas o SKiDL não.
 - Travou: o SKiDL 3.0.0 acha a `fp-lib-table`, mas não indexa nenhuma biblioteca dela, porque compara o tipo `"KiCad"` com as aspas. Não afeta a netlist (o footprint vai como texto), mas a busca de footprints do SKiDL não funciona. Rever na Parte 4.
+
+## 2026-11-13 — Marco 2, Parte 4 (netlist em SKiDL)
+- Fiz: `placas/monitor-umidade/circuito.py` com as tabelas da Parte 3 (conectores, ligações e não usados) por nome de pino, validação que exige cada pino numa rede ou marcado como não usado, `make netlist`, `make testes` e 11 testes; ERC do SKiDL sem erros nem avisos, e o `kinet2pcb` monta a placa com os 6 footprints.
+- Aprendi: com um `Circuit` próprio e `tag` fixa por peça, a netlist sai igual a cada execução (exceto a data); os pinos não usados vão para a rede `NC` do SKiDL, então qualquer pino esquecido vira aviso de ERC.
+- Travou: nada no código. Ficam pendências físicas do `pecas.md`: a lista de verificação da seção 4 está toda em aberto (VIN com 5 V pelo USB, ordem dos pinos de LCD, sensor e conversor), a distância de 25,4 mm entre as fileiras do ESP32 foi estimada a olho, o lado do pino 1 de cada conector fêmea precisa ser marcado na Parte 5, e não há fotos em `fotos/`.
