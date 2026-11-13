@@ -34,52 +34,25 @@ Ligações (nets): R1 e o anodo (A) do D1 ligados; catodo (K) do D1 ao pino 2 do
 J1; pino 1 do J1 ao outro terminal do R1. É um LED com resistor de 330 Ω levado
 a um conector de duas vias.
 
-## 3. Aviso sobre `KICAD*_SYMBOL_DIR` / `fp-lib-table`
+## 3. Bibliotecas do KiCad no container (`KICAD*_SYMBOL_DIR` / `fp-lib-table`)
 
-Ao rodar ferramentas baseadas em SKiDL/KiCad dentro do container (ver
-`skidl_REPL.log` na raiz do repositório) aparecem avisos como:
+No Marco 1, o container rodava com `HOME=/tmp` e sem variáveis de bibliotecas, então o
+SKiDL avisava `KICAD10_SYMBOL_DIR environment variable is missing` e
+`fp-lib-table file was not found`, e o DRC desta placa avisava `lib_footprint_issues`.
+A netlist `teste.net` traz o footprint embutido em cada componente, por isso a validação
+da M1-1 não dependia das bibliotecas.
 
-```
-WARNING: KICAD9_SYMBOL_DIR environment variable is missing, so the default
-         KiCad symbol libraries won't be searched.
-WARNING: KICAD8_SYMBOL_DIR environment variable is missing ...
-WARNING: KICAD_SYMBOL_DIR  ... / KICAD6_SYMBOL_DIR ... / KICAD10_SYMBOL_DIR ...
-WARNING: fp-lib-table file was not found. Component footprints are not available.
-```
+Desde o Marco 2 (Parte 1, issue #12) isso está resolvido no `Makefile`:
 
-### Por que acontece
+- o container usa `HOME=/projeto/.home` (pasta `.home/` do repositório, ignorada pelo Git);
+- `KICAD_SYMBOL_DIR`, `KICAD10_SYMBOL_DIR` e `KICAD10_FOOTPRINT_DIR` apontam para
+  `/usr/share/kicad/symbols` e `/usr/share/kicad/footprints`;
+- `make configurar` copia `fp-lib-table` e `sym-lib-table` de `/usr/share/kicad/template`
+  para `.home/.config/kicad/10.0/`. Basta rodar uma vez.
 
-O container não define as variáveis de ambiente `KICAD*_SYMBOL_DIR` que apontam
-para as bibliotecas de símbolos do KiCad, nem possui uma `fp-lib-table` (tabela
-de bibliotecas de footprints) no `HOME` do usuário. Sem elas, uma ferramenta que
-resolve símbolos/footprints "do zero" não encontra as bibliotecas padrão.
-
-### Por que NÃO bloqueia esta issue
-
-A netlist `teste.net` **já traz o footprint embutido** em cada componente
-(campo `(footprint "...")`). Portanto a validação da M1-1 não depende das
-bibliotecas do KiCad — ela lê o footprint direto do arquivo. Os avisos são
-inofensivos para este marco.
-
-### Como contornar dentro do container
-
-Se/quando uma etapa futura realmente precisar resolver símbolos/footprints pelas
-bibliotecas do KiCad, aponte as variáveis para as libs instaladas na imagem e,
-se necessário, exporte uma `fp-lib-table`. Dentro do container:
-
-```bash
-# Descobrir onde as libs do KiCad foram instaladas (ajuste a versão conforme a imagem):
-export KICAD_SYMBOL_DIR=/usr/share/kicad/symbols
-export KICAD10_SYMBOL_DIR=/usr/share/kicad/symbols
-# (defina também KICAD6/7/8/9_SYMBOL_DIR para o mesmo caminho se a ferramenta reclamar)
-
-# fp-lib-table global no HOME do usuário do container (HOME=/tmp no Makefile):
-mkdir -p "$HOME/.config/kicad"
-cp /usr/share/kicad/template/fp-lib-table "$HOME/.config/kicad/fp-lib-table" 2>/dev/null || true
-```
-
-Confirme o caminho real das libs com `kicad-cli version` e
-`ls /usr/share/kicad/` na imagem antes de fixar os valores.
+Os avisos que ainda aparecem ao importar o SKiDL (`KICAD6_SYMBOL_DIR` a `KICAD9_SYMBOL_DIR`
+e quatro `fp-lib-table file was not found`) vêm das ferramentas do KiCad 6 a 9 que o SKiDL
+carrega junto. O projeto usa só a ferramenta `kicad10`, que não avisa mais nada.
 
 ## 4. Validação
 

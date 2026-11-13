@@ -3,8 +3,19 @@
 
 IMAGEM := do-texto-a-placa
 
+# Variáveis de ambiente do container (Marco 2 / Parte 1):
+# - HOME aponta para .home/ (dentro do repositório, ignorada pelo Git), para a configuração
+#   do KiCad criada pelo "make configurar" não sumir entre um comando e outro.
+# - KICAD_SYMBOL_DIR, KICAD10_SYMBOL_DIR e KICAD10_FOOTPRINT_DIR dizem onde estão as
+#   bibliotecas do KiCad. O SKiDL 3 (ferramenta kicad10) lê KICAD10_SYMBOL_DIR, e as tabelas
+#   copiadas pelo "make configurar" usam ${KICAD10_FOOTPRINT_DIR} e ${KICAD10_SYMBOL_DIR}.
+AMBIENTE := -e HOME=/projeto/.home \
+    -e KICAD_SYMBOL_DIR=/usr/share/kicad/symbols \
+    -e KICAD10_SYMBOL_DIR=/usr/share/kicad/symbols \
+    -e KICAD10_FOOTPRINT_DIR=/usr/share/kicad/footprints
+
 # Roda um comando dentro do container, com o seu usuário e a pasta do projeto montada
-RUN := docker run --rm --user $(shell id -u):$(shell id -g) -e HOME=/tmp -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM)
+RUN := docker run --rm --user $(shell id -u):$(shell id -g) $(AMBIENTE) -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM)
 
 # Netlist de entrada do "make pcb" (fonte única de verdade, fixada na M1-1)
 NETLIST ?= placas/teste/teste/teste.net
@@ -14,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell pcb rotear drc
+.PHONY: imagem versao shell configurar netlist posicionar placa testes pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -26,7 +37,57 @@ versao:
 	$(RUN) ls /opt/freerouting
 
 shell:
-	docker run --rm -it --user $(shell id -u):$(shell id -g) -e HOME=/tmp -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) bash
+	docker run --rm -it --user $(shell id -u):$(shell id -g) $(AMBIENTE) -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) bash
+
+# Copia as tabelas-modelo de bibliotecas (footprints e símbolos) que vêm com o KiCad
+# para a pasta de configuração em .home/. Basta rodar uma vez. Marco 2 / Parte 1.
+configurar:
+	mkdir -p .home/.config/kicad/10.0
+	$(RUN) cp /usr/share/kicad/template/fp-lib-table .home/.config/kicad/10.0/
+	$(RUN) cp /usr/share/kicad/template/sym-lib-table .home/.config/kicad/10.0/
+
+# Gera a netlist da placa de referência a partir do circuito em SKiDL. Marco 2 / Parte 4.
+netlist:
+	$(RUN) python placas/monitor-umidade/circuito.py
+
+# Placa de referência: netlist + placa-modelo -> placa com as peças nas posições do YAML,
+# conferida contra a netlist e o YAML e passada pelo DRC. Marco 2 / Parte 6.
+MONITOR := placas/monitor-umidade
+PLACA_MONITOR := saida/monitor-umidade/monitor-umidade.kicad_pcb
+posicionar:
+	$(RUN) python scripts/gerar_placa.py -n $(MONITOR)/monitor-umidade.net -m $(MONITOR)/modelo/modelo.kicad_pcb -o $(PLACA_MONITOR)
+	$(RUN) python scripts/aplicar_posicoes.py $(PLACA_MONITOR) $(MONITOR)/posicoes.yaml $(PLACA_MONITOR)
+	$(RUN) python scripts/verificar_placa.py $(PLACA_MONITOR) $(MONITOR)/monitor-umidade.net $(MONITOR)/posicoes.yaml
+	$(RUN) kicad-cli pcb drc --severity-all -o saida/monitor-umidade/drc.rpt $(PLACA_MONITOR)
+	@echo "Placa posicionada em $(PLACA_MONITOR); DRC em saida/monitor-umidade/drc.rpt"
+
+# Pipeline completo da placa de referência (Marco 2 / Partes 7 e 8):
+# netlist -> placa posicionada -> roteamento -> DRC -> arquivos da fábrica.
+# Apaga as saídas anteriores antes de começar, para nada ficar desatualizado, e para no
+# primeiro passo que falhar. As entradas feitas à mão (pecas.md, a placa-modelo e o
+# posicoes.yaml) ficam no Git; ver a seção "Pipeline" do README.
+PLACA_ROTEADA_MONITOR := saida/monitor-umidade/monitor-umidade_roteada.kicad_pcb
+FABRICA := saida/fabrica
+CAMADAS_FABRICA := F.Cu,B.Cu,F.Mask,B.Mask,F.Silkscreen,B.Silkscreen,Edge.Cuts
+placa:
+	rm -rf saida/monitor-umidade $(FABRICA)
+	$(MAKE) netlist
+	$(MAKE) posicionar
+	$(RUN) python scripts/spike/round_trip_freerouting.py -i $(PLACA_MONITOR) -o $(PLACA_ROTEADA_MONITOR)
+	$(RUN) python scripts/verificar_placa.py $(PLACA_ROTEADA_MONITOR) $(MONITOR)/monitor-umidade.net $(MONITOR)/posicoes.yaml
+	$(RUN) kicad-cli pcb drc --severity-all --exit-code-violations -o saida/monitor-umidade/drc_roteada.rpt $(PLACA_ROTEADA_MONITOR)
+	$(RUN) kicad-cli pcb drc --severity-all --exit-code-violations --format json -o saida/monitor-umidade/drc_roteada.json $(PLACA_ROTEADA_MONITOR)
+	mkdir -p $(FABRICA)
+	$(RUN) kicad-cli pcb export gerbers --layers $(CAMADAS_FABRICA) -o $(FABRICA)/ $(PLACA_ROTEADA_MONITOR)
+	$(RUN) kicad-cli pcb export drill -o $(FABRICA)/ $(PLACA_ROTEADA_MONITOR)
+	$(RUN) kicad-cli pcb export pos --format csv --units mm -o $(FABRICA)/posicoes.csv $(PLACA_ROTEADA_MONITOR)
+	$(RUN) python scripts/bom.py $(MONITOR)/monitor-umidade.net $(FABRICA)/bom.csv
+	$(RUN) python scripts/verificar_saidas.py $(PLACA_ROTEADA_MONITOR) $(MONITOR)/monitor-umidade.net $(MONITOR)/posicoes.yaml saida/monitor-umidade/drc_roteada.json $(FABRICA)
+	@echo "Placa roteada em $(PLACA_ROTEADA_MONITOR); arquivos da fábrica em $(FABRICA)/"
+
+# Roda os testes automáticos (pytest) dentro do container.
+testes:
+	$(RUN) python -m pytest tests/
 
 # Gera a placa a partir da netlist (Caminho A: kinet2pcb). Marco 1 / M1-2.
 pcb:

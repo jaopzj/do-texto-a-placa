@@ -230,6 +230,18 @@ fp-info-cache
 
 # --- Saídas geradas pelo pipeline (podem ser recriadas) ---
 saida/
+# Pasta pessoal do container (HOME): configuração local do KiCad, criada por "make configurar"
+.home/
+# Log e relatório de ERC que o SKiDL grava na pasta onde roda
+skidl_REPL.*
+# Arquivos auxiliares que o SKiDL grava ao rodar um circuito (log, ERC e biblioteca de cópia)
+*.erc
+*_sklib.py
+# Netlist gerada pelo "make netlist" (a fonte é o circuito.py)
+placas/monitor-umidade/monitor-umidade.net
+
+# --- Instruções locais do projeto (mantidas fora do Git) ---
+CLAUDE.md
 # Relatórios de DRC avulsos gerados fora de saida/ (ex.: kicad-cli na raiz)
 *-drc.rpt
 # Project file companheiro gerado ao abrir a placa roteada (a .kicad_pcb já é versionada)
