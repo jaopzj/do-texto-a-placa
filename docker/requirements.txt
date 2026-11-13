@@ -4,3 +4,5 @@ skidl
 pydantic
 pyyaml
 pytest
+# netlist -> .kicad_pcb (Caminho A do Marco 1 / M1-2). Usa o pcbnew do KiCad.
+kinet2pcb
