@@ -25,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell configurar netlist testes pcb rotear drc
+.PHONY: imagem versao shell configurar netlist posicionar testes pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -49,6 +49,17 @@ configurar:
 # Gera a netlist da placa de referência a partir do circuito em SKiDL. Marco 2 / Parte 4.
 netlist:
 	$(RUN) python placas/monitor-umidade/circuito.py
+
+# Placa de referência: netlist + placa-modelo -> placa com as peças nas posições do YAML,
+# conferida contra a netlist e o YAML e passada pelo DRC. Marco 2 / Parte 6.
+MONITOR := placas/monitor-umidade
+PLACA_MONITOR := saida/monitor-umidade/monitor-umidade.kicad_pcb
+posicionar:
+	$(RUN) python scripts/gerar_placa.py -n $(MONITOR)/monitor-umidade.net -m $(MONITOR)/modelo/modelo.kicad_pcb -o $(PLACA_MONITOR)
+	$(RUN) python scripts/aplicar_posicoes.py $(PLACA_MONITOR) $(MONITOR)/posicoes.yaml $(PLACA_MONITOR)
+	$(RUN) python scripts/verificar_placa.py $(PLACA_MONITOR) $(MONITOR)/monitor-umidade.net $(MONITOR)/posicoes.yaml
+	$(RUN) kicad-cli pcb drc --severity-all -o saida/monitor-umidade/drc.rpt $(PLACA_MONITOR)
+	@echo "Placa posicionada em $(PLACA_MONITOR); DRC em saida/monitor-umidade/drc.rpt"
 
 # Roda os testes automáticos (pytest) dentro do container.
 testes:

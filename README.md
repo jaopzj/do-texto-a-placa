@@ -20,6 +20,7 @@ make configurar  # copia as tabelas de bibliotecas do KiCad para .home/ (uma vez
 make versao      # confere KiCad, Java, Python e Freerouting dentro do container
 make drc         # roda o DRC na placa de teste e salva o relatório em saida/
 make netlist     # gera a netlist da placa de referência (SKiDL)
+make posicionar  # gera a placa de referência com as peças nas posições de posicoes.yaml
 make testes      # roda os testes automáticos (pytest)
 make shell       # abre um terminal dentro do container
 ```
