@@ -232,6 +232,11 @@ fp-info-cache
 saida/
 # Pasta pessoal do container (HOME): configuração local do KiCad, criada por "make configurar"
 .home/
+# Log e relatório de ERC que o SKiDL grava na pasta onde roda
+skidl_REPL.*
+
+# --- Instruções locais do projeto (mantidas fora do Git) ---
+CLAUDE.md
 # Relatórios de DRC avulsos gerados fora de saida/ (ex.: kicad-cli na raiz)
 *-drc.rpt
 # Project file companheiro gerado ao abrir a placa roteada (a .kicad_pcb já é versionada)
