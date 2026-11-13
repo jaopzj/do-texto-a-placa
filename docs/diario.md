@@ -33,3 +33,8 @@
 - Fiz: `make placa` roda tudo, da netlist aos arquivos da fábrica, e para no primeiro erro; o Freerouting roteou as 8 redes (44 trilhas, 1 via) e o DRC da placa roteada deu 0 violações e 0 pendências; Gerbers de 7 camadas, furação, posições e BOM (`scripts/bom.py`) em `saida/fabrica/`, conferidos por `scripts/verificar_saidas.py`; `gabarito.net` e ADR-005 (módulos como conectores fêmea); 33 testes.
 - Aprendi: `kicad-cli pcb drc --exit-code-violations` também falha com ligações pendentes, então serve de portão do pipeline; o Freerouting deu o mesmo roteamento em execuções seguidas, mas os UUIDs das trilhas importadas do SES são aleatórios, então a placa roteada só é igual na geometria, e não byte a byte; o script do spike contava vias com `"(via "` e dizia 0 vias, porque o KiCad 10 grava `(via` com quebra de linha.
 - Travou: nada no pipeline. Continuam as pendências físicas das Partes 2, 5 e 6 (fileiras do conversor, corpos dos módulos, mínimos da fábrica, verificações da seção 4 do `pecas.md`) e a conferência visual da placa no KiCad, que é de uma pessoa.
+
+## 2026-11-13 — Marco 2 concluído
+- Fiz: o john conferiu a placa roteada no KiCad e no visualizador 3D, e o PR #13 entrou na `main` (Partes 1 a 8, com o `gabarito.net` e os ADRs 004 e 005). O M2 está concluído.
+- Aprendi: o repositório ainda não tem GitHub Actions; os testes só rodam com `make testes` dentro do container.
+- Travou: nada. Próximo marco: M3 (base de componentes v0).
