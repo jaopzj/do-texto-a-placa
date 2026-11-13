@@ -43,6 +43,7 @@ NENHUMA JANELA GRAFICA e aberta em nenhum passo.
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 
@@ -140,7 +141,7 @@ def main(argv=None):
     with open(args.output, "r", encoding="utf-8") as f:
         conteudo = f.read()
     segmentos = _contar(conteudo, "(segment")
-    vias = _contar(conteudo, "(via ")
+    vias = len(re.findall(r"\(via\b", conteudo))
     if segmentos == 0:
         raise SystemExit(
             "ERRO: a placa roteada '{}' nao tem nenhum segmento de trilha. "
