@@ -18,6 +18,8 @@ A exceção do ADR-003 passa a cobrir também estes scripts, e só eles:
 - `scripts/gerar_placa.py`: netlist + placa-modelo -> placa com os footprints e as redes;
 - `scripts/aplicar_posicoes.py`: aplica as posições do YAML;
 - `scripts/verificar_placa.py`: confere a placa contra a netlist e o YAML.
+- `scripts/verificar_saidas.py`: confere a furação contra os pads e vias da placa roteada
+  (Parte 7).
 
 Eles reaproveitam o parser de netlist do `scripts/spike/netlist_para_pcb.py`. As
 verificações de fabricação continuam no `kicad-cli` (DRC).
@@ -25,7 +27,7 @@ verificações de fabricação continuam no `kicad-cli` (DRC).
 ## Consequências
 
 - A Parte 6 roda headless no container (`make posicionar`).
-- A dívida técnica do ADR-003 cresce de dois para cinco scripts, todos em `scripts/`.
+- A dívida técnica do ADR-003 cresce de dois para seis scripts, todos em `scripts/`.
   Nenhum código de `src/` usa o `pcbnew`.
 - O gatilho de reavaliação é o mesmo do ADR-003 (KiCad 11 ou API IPC madura). Na
-  migração, estes três scripts entram na lista.
+  migração, estes quatro scripts entram na lista.
