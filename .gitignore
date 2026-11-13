@@ -230,4 +230,12 @@ fp-info-cache
 
 # --- Saídas geradas pelo pipeline (podem ser recriadas) ---
 saida/
+# Relatórios de DRC avulsos gerados fora de saida/ (ex.: kicad-cli na raiz)
+*-drc.rpt
+# Project file companheiro gerado ao abrir a placa roteada (a .kicad_pcb já é versionada)
+*_roteada.kicad_pro
+
+# --- Artefatos de editor ---
+# Histórico local da extensão "Local History" do VS Code
+.history/
 
