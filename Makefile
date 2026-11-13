@@ -25,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell configurar netlist posicionar testes pcb rotear drc
+.PHONY: imagem versao shell configurar netlist posicionar placa testes pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -60,6 +60,30 @@ posicionar:
 	$(RUN) python scripts/verificar_placa.py $(PLACA_MONITOR) $(MONITOR)/monitor-umidade.net $(MONITOR)/posicoes.yaml
 	$(RUN) kicad-cli pcb drc --severity-all -o saida/monitor-umidade/drc.rpt $(PLACA_MONITOR)
 	@echo "Placa posicionada em $(PLACA_MONITOR); DRC em saida/monitor-umidade/drc.rpt"
+
+# Pipeline completo da placa de referência (Marco 2 / Partes 7 e 8):
+# netlist -> placa posicionada -> roteamento -> DRC -> arquivos da fábrica.
+# Apaga as saídas anteriores antes de começar, para nada ficar desatualizado, e para no
+# primeiro passo que falhar. As entradas feitas à mão (pecas.md, a placa-modelo e o
+# posicoes.yaml) ficam no Git; ver a seção "Pipeline" do README.
+PLACA_ROTEADA_MONITOR := saida/monitor-umidade/monitor-umidade_roteada.kicad_pcb
+FABRICA := saida/fabrica
+CAMADAS_FABRICA := F.Cu,B.Cu,F.Mask,B.Mask,F.Silkscreen,B.Silkscreen,Edge.Cuts
+placa:
+	rm -rf saida/monitor-umidade $(FABRICA)
+	$(MAKE) netlist
+	$(MAKE) posicionar
+	$(RUN) python scripts/spike/round_trip_freerouting.py -i $(PLACA_MONITOR) -o $(PLACA_ROTEADA_MONITOR)
+	$(RUN) python scripts/verificar_placa.py $(PLACA_ROTEADA_MONITOR) $(MONITOR)/monitor-umidade.net $(MONITOR)/posicoes.yaml
+	$(RUN) kicad-cli pcb drc --severity-all --exit-code-violations -o saida/monitor-umidade/drc_roteada.rpt $(PLACA_ROTEADA_MONITOR)
+	$(RUN) kicad-cli pcb drc --severity-all --exit-code-violations --format json -o saida/monitor-umidade/drc_roteada.json $(PLACA_ROTEADA_MONITOR)
+	mkdir -p $(FABRICA)
+	$(RUN) kicad-cli pcb export gerbers --layers $(CAMADAS_FABRICA) -o $(FABRICA)/ $(PLACA_ROTEADA_MONITOR)
+	$(RUN) kicad-cli pcb export drill -o $(FABRICA)/ $(PLACA_ROTEADA_MONITOR)
+	$(RUN) kicad-cli pcb export pos --format csv --units mm -o $(FABRICA)/posicoes.csv $(PLACA_ROTEADA_MONITOR)
+	$(RUN) python scripts/bom.py $(MONITOR)/monitor-umidade.net $(FABRICA)/bom.csv
+	$(RUN) python scripts/verificar_saidas.py $(PLACA_ROTEADA_MONITOR) $(MONITOR)/monitor-umidade.net $(MONITOR)/posicoes.yaml saida/monitor-umidade/drc_roteada.json $(FABRICA)
+	@echo "Placa roteada em $(PLACA_ROTEADA_MONITOR); arquivos da fábrica em $(FABRICA)/"
 
 # Roda os testes automáticos (pytest) dentro do container.
 testes:
