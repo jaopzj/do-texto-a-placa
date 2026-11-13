@@ -4,7 +4,7 @@ Plataforma de projeto de placas de circuito impresso conduzida por um agente de 
 o usuário descreve o hardware em português e o agente entrega a placa pronta para
 fabricação, usando o KiCad e verificações reais. A IA propõe, o código decide.
 
-Status: em estruturação (Marco 0).
+Status: em estruturação (Marco 2).
 
 ## Requisitos
 
@@ -15,11 +15,16 @@ Status: em estruturação (Marco 0).
 ## Como rodar
 
 ```bash
-make imagem   # constrói a imagem Docker (a primeira vez demora)
-make versao   # confere KiCad, Java, Python e Freerouting dentro do container
-make drc      # roda o DRC na placa de teste e salva o relatório em saida/
-make shell    # abre um terminal dentro do container
+make imagem      # constrói a imagem Docker (a primeira vez demora)
+make configurar  # copia as tabelas de bibliotecas do KiCad para .home/ (uma vez só)
+make versao      # confere KiCad, Java, Python e Freerouting dentro do container
+make drc         # roda o DRC na placa de teste e salva o relatório em saida/
+make shell       # abre um terminal dentro do container
 ```
+
+O container usa como pasta pessoal (`HOME`) a pasta `.home/` do repositório, ignorada
+pelo Git. É lá que o `make configurar` guarda a configuração do KiCad, para ela não
+sumir entre um comando e outro. Se apagar a `.home/`, rode `make configurar` de novo.
 
 ## Estrutura
 

@@ -3,8 +3,19 @@
 
 IMAGEM := do-texto-a-placa
 
+# Variáveis de ambiente do container (Marco 2 / Parte 1):
+# - HOME aponta para .home/ (dentro do repositório, ignorada pelo Git), para a configuração
+#   do KiCad criada pelo "make configurar" não sumir entre um comando e outro.
+# - KICAD_SYMBOL_DIR, KICAD10_SYMBOL_DIR e KICAD10_FOOTPRINT_DIR dizem onde estão as
+#   bibliotecas do KiCad. O SKiDL 3 (ferramenta kicad10) lê KICAD10_SYMBOL_DIR, e as tabelas
+#   copiadas pelo "make configurar" usam ${KICAD10_FOOTPRINT_DIR} e ${KICAD10_SYMBOL_DIR}.
+AMBIENTE := -e HOME=/projeto/.home \
+    -e KICAD_SYMBOL_DIR=/usr/share/kicad/symbols \
+    -e KICAD10_SYMBOL_DIR=/usr/share/kicad/symbols \
+    -e KICAD10_FOOTPRINT_DIR=/usr/share/kicad/footprints
+
 # Roda um comando dentro do container, com o seu usuário e a pasta do projeto montada
-RUN := docker run --rm --user $(shell id -u):$(shell id -g) -e HOME=/tmp -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM)
+RUN := docker run --rm --user $(shell id -u):$(shell id -g) $(AMBIENTE) -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM)
 
 # Netlist de entrada do "make pcb" (fonte única de verdade, fixada na M1-1)
 NETLIST ?= placas/teste/teste/teste.net
@@ -14,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell pcb rotear drc
+.PHONY: imagem versao shell configurar pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -26,7 +37,14 @@ versao:
 	$(RUN) ls /opt/freerouting
 
 shell:
-	docker run --rm -it --user $(shell id -u):$(shell id -g) -e HOME=/tmp -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) bash
+	docker run --rm -it --user $(shell id -u):$(shell id -g) $(AMBIENTE) -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) bash
+
+# Copia as tabelas-modelo de bibliotecas (footprints e símbolos) que vêm com o KiCad
+# para a pasta de configuração em .home/. Basta rodar uma vez. Marco 2 / Parte 1.
+configurar:
+	mkdir -p .home/.config/kicad/10.0
+	$(RUN) cp /usr/share/kicad/template/fp-lib-table .home/.config/kicad/10.0/
+	$(RUN) cp /usr/share/kicad/template/sym-lib-table .home/.config/kicad/10.0/
 
 # Gera a placa a partir da netlist (Caminho A: kinet2pcb). Marco 1 / M1-2.
 pcb:

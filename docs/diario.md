@@ -13,3 +13,8 @@
 - M1-6: relatório do spike em `docs/spikes/netlist-ate-placa.md`.
 - Reproduzível por `make pcb` + `make rotear`. Orquestração via time de agentes
   (Planejador, Desenvolvedor, Pesquisador); docs finais consolidados pelo Orquestrador.
+
+## 2026-11-13 — Marco 2, Parte 1 (bibliotecas do container, issue #12)
+- Fiz: `.home/` como HOME do container (ignorada pelo Git), variáveis de bibliotecas no `Makefile` e o alvo `make configurar`; os 3 avisos `lib_footprint_issues` do DRC da placa de teste sumiram.
+- Aprendi: o SKiDL 3.0.0 (ferramenta `kicad10`) lê `KICAD10_SYMBOL_DIR`, e não `KICAD_SYMBOL_DIR`; as tabelas do KiCad 10 usam `${KICAD10_FOOTPRINT_DIR}` e `${KICAD10_SYMBOL_DIR}`, que o kicad-cli resolve sozinho, mas o SKiDL não.
+- Travou: o SKiDL 3.0.0 acha a `fp-lib-table`, mas não indexa nenhuma biblioteca dela, porque compara o tipo `"KiCad"` com as aspas. Não afeta a netlist (o footprint vai como texto), mas a busca de footprints do SKiDL não funciona. Rever na Parte 4.

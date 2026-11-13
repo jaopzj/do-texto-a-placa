@@ -230,6 +230,8 @@ fp-info-cache
 
 # --- Saídas geradas pelo pipeline (podem ser recriadas) ---
 saida/
+# Pasta pessoal do container (HOME): configuração local do KiCad, criada por "make configurar"
+.home/
 # Relatórios de DRC avulsos gerados fora de saida/ (ex.: kicad-cli na raiz)
 *-drc.rpt
 # Project file companheiro gerado ao abrir a placa roteada (a .kicad_pcb já é versionada)
