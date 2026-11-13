@@ -11,8 +11,10 @@ NETLIST ?= placas/teste/teste/teste.net
 # Placa gerada pelo "make pcb" e verificada pelo "make drc"
 # (dá para trocar: make drc PLACA=outra.kicad_pcb)
 PLACA ?= placas/teste/teste/teste.kicad_pcb
+# Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
+PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell pcb drc
+.PHONY: imagem versao shell pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -30,6 +32,12 @@ shell:
 pcb:
 	$(RUN) python scripts/spike/netlist_para_pcb.py -i $(NETLIST) -o $(PLACA)
 	@echo "Placa gerada em $(PLACA)"
+
+# Roteia a placa no Freerouting (headless): DSN -> SES -> placa com trilhas.
+# Marco 1 / M1-4. Depende de "make pcb" ter gerado a placa de entrada.
+rotear:
+	$(RUN) python scripts/spike/round_trip_freerouting.py -i $(PLACA) -o $(PLACA_ROTEADA)
+	@echo "Placa roteada em $(PLACA_ROTEADA)"
 
 drc:
 	mkdir -p saida
