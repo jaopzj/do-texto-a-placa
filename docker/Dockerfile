@@ -7,8 +7,10 @@
 # (página kicad/kicad, aba Tags). Ex.: 10.0.3-full. Nunca use "latest".
 ARG KICAD_TAG=10.0.8-full
 
-# Estágio 1: só serve para pegar o Java 21, que o Freerouting atual exige.
-FROM eclipse-temurin:21-jre AS java
+# Estágio 1: só serve para pegar o Java 25, que o Freerouting 2.2.4 exige
+# (o jar foi compilado para o bytecode do Java 25; no Java 21 dá
+# UnsupportedClassVersionError). Ver ADR-002 (nota da troca 21→25).
+FROM eclipse-temurin:25-jre AS java
 
 # Estágio 2: a imagem do projeto, partindo da imagem oficial do KiCad.
 FROM kicad/kicad:${KICAD_TAG}
@@ -23,7 +25,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends python3-venv python3-pip ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# Java 21 copiado do estágio 1
+# Java 25 copiado do estágio 1
 COPY --from=java /opt/java/openjdk /opt/java/openjdk
 ENV JAVA_HOME=/opt/java/openjdk
 
