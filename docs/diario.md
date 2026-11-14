@@ -48,3 +48,8 @@
 - Fiz: o modelo ganhou `conectores` (ADR-007); versionei o ESP32 DevKitC V4 (38 pinos), o LCD e o conversor, que estavam só na pasta local; corrigi o ESP32 (duas fileiras 1x19, GPIO8/GPIO9 pela página 5 da Espressif), o LV4 do conversor e passei todos os módulos para barra macho (ADR-008); o `circuito.py` busca símbolo, footprint e pinos na base; `pecas.md`, `gabarito.net` e testes refeitos para o ESP32 de 38 pinos e o sensor HW-101.
 - Aprendi: os 19 pinos por fileira do ESP32 fazem a serigrafia de J1/J2 encostar na referência de J3/J4, e o DRC acusa `silk_overlap`; J3 e J4 foram 3 mm para a direita.
 - Travou: a distância entre as fileiras do ESP32 (25,4 mm) e entre os lados do conversor continuam estimadas; ESP32 e LCD ainda estão em `rascunho`, e alguns rótulos de função do ESP32 não estão na página 5 da Espressif.
+
+## 2026-11-14 — Marco 4, Parte 2 (especificação da placa)
+- Fiz: `src/especificacao.py` com o modelo da especificação (projeto, módulos, alimentação e restrições, cada decisão com `decidido_por`) e `ler_especificacao()`, que valida e confere os ids contra a base (ADR-009); `placas/monitor-umidade/spec.yaml` escrito à mão; `tests/test_especificacao.py`, que também roda no GitHub Actions.
+- Aprendi: a proposta (página 9) previa barra fêmea e montagem por encaixe, mas o ADR-008 trocou para barra macho; a especificação segue a decisão mais nova.
+- Travou: quem decidiu o LCD e as duas camadas segue a proposta (agente), e falta o john confirmar; os valores mínimos de trilha, espaçamento e furo da fábrica não estão anotados no `pecas.md`, então ficaram fora das restrições.

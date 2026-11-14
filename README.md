@@ -76,11 +76,29 @@ seu símbolo e footprint (ADR-007). O
 `make testes` também confere se o símbolo e o footprint de cada peça existem nas
 bibliotecas do KiCad do container.
 
+## Especificação da placa
+
+A entrada do agente (Marco 4) é a especificação da placa, um YAML no formato do modelo
+`src/especificacao.py`. A da placa de referência é `placas/monitor-umidade/spec.yaml`:
+projeto, módulos (cada um com o id de um componente da base), alimentação e restrições.
+Cada decisão diz quem a tomou em `decidido_por` (`usuario` ou `agente`), e uma decisão do
+agente sempre traz motivo e fonte.
+
+```python
+from pathlib import Path
+from src.especificacao import ler_especificacao
+spec = ler_especificacao(Path("placas/monitor-umidade/spec.yaml"))
+```
+
+Com qualquer problema (campo errado, `decidido_por` fora dos dois valores, componente ou
+regra que não está na base), `ler_especificacao()` levanta `ErroEspecificacao`, com o campo
+de cada erro. As regras estão no ADR-009.
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
-carrega a base e roda `tests/test_componentes.py`. Um YAML com erro deixa o pull request
-com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+carrega a base e roda `tests/test_componentes.py` e `tests/test_especificacao.py`. Um YAML
+com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura
