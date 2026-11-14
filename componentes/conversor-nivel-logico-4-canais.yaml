@@ -1,0 +1,114 @@
+
+id: conversor-nivel-logico-4-canais
+descricao: Módulo conversor de nível lógico bidirecional de 4 canais, utilizado para adaptar sinais digitais entre dispositivos que operam com diferentes tensões lógicas, como 5 V, 3.3 V, 2.8 V e 1.8 V. Possui alimentação independente para os lados de alta tensão (HV) e baixa tensão (LV).
+
+kicad_simbolo: Connector_Generic:Conn_02x06_Odd_Even
+kicad_footprint: Connector_PinHeader_2.54mm:PinHeader_2x06_P2.54mm_Vertical
+
+alimentacao_min: 1.8
+alimentacao_max: 5.0
+
+nivel_logico: null
+
+pinos:
+  - numero: 1
+    nome: HV1
+    tipo: entrada_saida
+    funcoes: ["Canal 1 de conversão bidirecional", "Lado de alta tensão"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 2
+    nome: HV2
+    tipo: entrada_saida
+    funcoes: ["Canal 2 de conversão bidirecional", "Lado de alta tensão"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 3
+    nome: HV
+    tipo: alimentacao
+    funcoes: ["Alimentação do lado de alta tensão"]
+    tensao_max: 5.0
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 4
+    nome: GND
+    tipo: terra
+    funcoes: ["Terra", "Referência comum de 0 V"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 5
+    nome: HV3
+    tipo: entrada_saida
+    funcoes: ["Canal 3 de conversão bidirecional", "Lado de alta tensão"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 6
+    nome: HV4
+    tipo: entrada_saida
+    funcoes: ["Canal 4 de conversão bidirecional", "Lado de alta tensão"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 7
+    nome: LV1
+    tipo: entrada_saida
+    funcoes: ["Canal 1 de conversão bidirecional", "Lado de baixa tensão"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 8
+    nome: LV2
+    tipo: entrada_saida
+    funcoes: ["Canal 2 de conversão bidirecional", "Lado de baixa tensão"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 9
+    nome: LV
+    tipo: alimentacao
+    tensao_max: 3.3
+    funcoes: ["Alimentação do lado de baixa tensão"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 10
+    nome: GND
+    tipo: terra
+    funcoes: ["Terra", "Referência comum de 0 V"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 11
+    nome: LV3
+    tipo: entrada_saida
+    funcoes: ["Canal 3 de conversão bidirecional", "Lado de baixa tensão"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+  - numero: 12
+    nome: LV4
+    tipo: alimentacao
+    tensao_max: 3.3
+    funcoes: ["Alimentação do lado de baixa tensão"]
+    fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
+
+regras:
+  - id: level-shifter-dual-supply
+    descricao: "O módulo exige duas alimentações independentes: HV para o lado de alta tensão e LV para o lado de baixa tensão. Ambas devem estar conectadas às respectivas fontes."
+    severidade: erro
+
+  - id: level-shifter-common-ground
+    descricao: "Os dispositivos conectados aos dois lados devem compartilhar uma referência comum de terra (GND)."
+    severidade: erro
+
+  - id: level-shifter-voltage-direction
+    descricao: "Conectar os sinais de maior tensão aos canais HV e os sinais de menor tensão aos canais LV. Não inverter as conexões dos lados de alta e baixa tensão."
+    severidade: erro
+
+  - id: level-shifter-supply-order
+    descricao: "Estabelecer as alimentações HV e LV antes de utilizar os canais de conversão. Não operar o módulo sem as respectivas referências de alimentação."
+    severidade: erro
+
+  - id: level-shifter-channel-mapping
+    descricao: "Cada canal deve ser conectado ao seu correspondente: HV1 com LV1, HV2 com LV2, HV3 com LV3 e HV4 com LV4."
+    severidade: erro
+
+  - id: level-shifter-voltage-compatibility
+    descricao: "Verificar se as tensões utilizadas nos lados HV e LV estão dentro das especificações do módulo. O manual apresenta compatibilidade com combinações de 5 V, 3.3 V, 2.8 V e 1.8 V."
+    severidade: aviso
+
+status: revisado

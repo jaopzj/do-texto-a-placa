@@ -64,7 +64,7 @@ def test_sensor_carregado_com_os_dados_do_yaml():
     assert [(p.numero, p.nome, p.tipo) for p in comp.pinos] == [
         (1, "GND", "terra"), (2, "VCC", "alimentacao"), (3, "AOUT", "analogico")]
     assert all(p.fonte.documento for p in comp.pinos)
-    assert comp.status == "rascunho"
+    assert comp.status == "revisado"   # revisado pelo john em 2026-11-14
 
 
 def test_id_de_cada_componente_e_unico_e_bate_com_a_chave():

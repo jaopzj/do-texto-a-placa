@@ -12,4 +12,4 @@ pinos:
   - { numero: 2, nome: VCC,  tipo: alimentacao, fonte: { documento: 1662716326-hw-101-hw-moisture-sensor-v1-0.pdf, pagina: 2 } }
   - { numero: 3, nome: AOUT, tipo: analogico,   fonte: { documento: 1662716326-hw-101-hw-moisture-sensor-v1-0.pdf, pagina: 2 } }
 
-status: rascunho
+status: revisado
