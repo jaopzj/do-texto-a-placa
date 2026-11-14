@@ -1,9 +1,8 @@
-"""Testes do laço do agente, dos contratos e do adaptador do Gemini (Marco 4, Parte 3).
+"""Testes do laço do agente, dos contratos e do adaptador da Anthropic (Marco 4, Parte 3).
 
 Nenhum teste chama um modelo de IA. O laço roda com um provedor falso, que devolve
-respostas escritas à mão, como o modelo devolveria. O adaptador do Gemini só é testado na
-tradução das respostas, e o teste é pulado se a biblioteca google-genai não estiver
-instalada.
+respostas escritas à mão, como o modelo devolveria. O adaptador da Anthropic roda com um
+cliente falso, e esses testes são pulados se a biblioteca anthropic não estiver instalada.
 """
 import pytest
 
@@ -150,56 +149,114 @@ def test_pedido_leva_a_especificacao_inteira():
     assert SPEC.read_text(encoding="utf-8").strip() in pedido
 
 
-# --- Adaptador do Gemini (só a tradução; nenhuma chamada à API) ---------------------------------
+# --- Adaptador da Anthropic (só a tradução e a conversa; nenhuma chamada à API) --------------
 
-def test_gemini_traduz_texto_chamadas_e_tokens():
-    types = pytest.importorskip("google.genai.types")
-    from src.agente.provedores.gemini import traduzir
-    resposta = types.GenerateContentResponse(
-        candidates=[types.Candidate(content=types.Content(role="model", parts=[
-            types.Part(text="Vou ligar o sensor."),
-            types.Part(function_call=types.FunctionCall(
-                name="conectar", args={"ref": "U3", "pino": 3, "rede": "SENSOR"})),
-        ]))],
-        usage_metadata=types.GenerateContentResponseUsageMetadata(
-            prompt_token_count=120, candidates_token_count=30))
-    r = traduzir(resposta)
+def _mensagem(conteudo, stop_reason="tool_use", **extra):
+    beta = pytest.importorskip("anthropic.types.beta")
+    return beta.BetaMessage.model_validate({
+        "id": "msg_1", "type": "message", "role": "assistant", "model": "claude-opus-5-5",
+        "content": conteudo, "stop_reason": stop_reason, "stop_sequence": None,
+        "usage": {"input_tokens": 100, "output_tokens": 20, "cache_read_input_tokens": 50,
+                  "cache_creation_input_tokens": 10}, **extra})
+
+
+def test_claude_traduz_texto_chamadas_e_tokens():
+    from src.agente.provedores.claude import traduzir
+    r = traduzir(_mensagem([
+        {"type": "thinking", "thinking": "", "signature": "x"},
+        {"type": "text", "text": "Vou ligar o sensor."},
+        {"type": "tool_use", "id": "toolu_1", "name": "conectar",
+         "input": {"ref": "U3", "pino": 3, "rede": "SENSOR"}},
+    ]))
     assert r.texto == "Vou ligar o sensor."
-    assert r.chamadas == (Chamada("conectar", {"ref": "U3", "pino": 3, "rede": "SENSOR"}),)
-    assert (r.tokens_entrada, r.tokens_saida) == (120, 30)
+    assert r.chamadas == (Chamada("conectar", {"ref": "U3", "pino": 3, "rede": "SENSOR"},
+                                  "toolu_1"),)
+    assert (r.tokens_entrada, r.tokens_saida) == (160, 20)   # entrada inclui o cache
 
 
-def test_gemini_aceita_os_seis_contratos():
-    types = pytest.importorskip("google.genai.types")
-    declaracoes = [types.FunctionDeclaration(name=c["name"], description=c["description"],
-                                             parameters_json_schema=c["parameters"])
-                   for c in CONTRATOS]
-    assert [d.name for d in declaracoes] == list(FERRAMENTAS)
+def test_claude_recusa_termina_sem_executar_ferramentas():
+    from src.agente.provedores.claude import traduzir
+    r = traduzir(_mensagem(
+        [{"type": "tool_use", "id": "t", "name": "buscar_componente", "input": {"termo": "x"}}],
+        stop_reason="refusal"))
+    assert r.chamadas == () and "recusou" in r.texto
 
 
-def test_gemini_monta_a_conversa_sem_chamar_a_api():
-    types = pytest.importorskip("google.genai.types")
-    from src.agente.provedores.gemini import ProvedorGemini
+def test_claude_resposta_cortada_nao_executa_pedido_incompleto():
+    from src.agente.provedores.claude import traduzir
+    r = traduzir(_mensagem(
+        [{"type": "tool_use", "id": "t", "name": "buscar_componente", "input": {}}],
+        stop_reason="max_tokens"))
+    assert r.chamadas == () and "limite" in r.texto
 
-    class Modelos:
-        def __init__(self):
-            self.pedidos = []
 
-        def generate_content(self, model, contents, config):
-            self.pedidos.append((model, list(contents), config))
-            return types.GenerateContentResponse(candidates=[types.Candidate(
-                content=types.Content(role="model", parts=[types.Part(text="ok")]))])
+def test_claude_monta_a_conversa_sem_chamar_a_api():
+    pytest.importorskip("anthropic")
+    from src.agente.provedores.claude import MODELO, ProvedorClaude
+
+    pedidos = []
+    respostas = [
+        _mensagem([{"type": "thinking", "thinking": "", "signature": "s"},
+                   {"type": "tool_use", "id": "toolu_1", "name": "buscar_componente",
+                    "input": {"termo": "umidade"}},
+                   {"type": "tool_use", "id": "toolu_2", "name": "ler_dados_componente",
+                    "input": {"id": "x"}}]),
+        _mensagem([{"type": "text", "text": "Fim."}], stop_reason="end_turn"),
+    ]
+
+    class Mensagens:
+        def create(self, **parametros):
+            pedidos.append({**parametros, "messages": list(parametros["messages"])})
+            return respostas.pop(0)
 
     class Cliente:
-        models = Modelos()
+        class beta:
+            messages = Mensagens()
 
-    provedor = ProvedorGemini(cliente=Cliente())
-    assert provedor.iniciar(SISTEMA, CONTRATOS, "pedido").texto == "ok"
-    model, contents, config = Cliente.models.pedidos[0]
-    assert config.system_instruction == SISTEMA
-    assert config.automatic_function_calling.disable is True
-    assert [d.name for d in config.tools[0].function_declarations] == list(FERRAMENTAS)
-    provedor.continuar([(Chamada("buscar_componente", {"termo": "x"}), {"ok": False})])
-    _, contents, _ = Cliente.models.pedidos[1]
-    assert contents[-1].parts[0].function_response.name == "buscar_componente"
-    assert contents[-1].parts[0].function_response.response == {"ok": False}
+    provedor = ProvedorClaude(cliente=Cliente())
+    primeira = provedor.iniciar(SISTEMA, CONTRATOS, "pedido")
+    p = pedidos[0]
+    assert p["model"] == MODELO == "claude-opus-5-5"
+    assert p["system"] == SISTEMA and p["thinking"] == {"type": "adaptive"}
+    assert p["output_config"] == {"effort": "high"}
+    assert p["fallbacks"] == "default" and p["betas"] == ["server-side-fallback-2026-07-01"]
+    assert "temperature" not in p
+    assert [f["name"] for f in p["tools"]] == list(FERRAMENTAS)
+    assert p["tools"][0]["input_schema"] == CONTRATOS[0]["parameters"]
+    assert p["messages"] == [{"role": "user", "content": "pedido"}]
+
+    resultados = [(primeira.chamadas[0], {"ok": True, "encontrados": []}),
+                  (primeira.chamadas[1], {"ok": False, "erro": "componente_inexistente"})]
+    assert provedor.continuar(resultados).texto == "Fim."
+    historico = pedidos[1]["messages"]
+    # A resposta anterior volta inteira (com o bloco de raciocínio), e os dois resultados
+    # voltam juntos, numa só mensagem, com is_error na recusa.
+    assert historico[1]["role"] == "assistant"
+    assert [b.type for b in historico[1]["content"]] == ["thinking", "tool_use", "tool_use"]
+    blocos = historico[2]["content"]
+    assert [b["tool_use_id"] for b in blocos] == ["toolu_1", "toolu_2"]
+    assert [b["is_error"] for b in blocos] == [False, True]
+    assert '"componente_inexistente"' in blocos[1]["content"]
+
+
+def test_laco_com_o_adaptador_da_anthropic(base):
+    """O laço inteiro com o adaptador real e um cliente falso."""
+    pytest.importorskip("anthropic")
+    from src.agente.provedores.claude import ProvedorClaude
+    respostas = [
+        _mensagem([{"type": "tool_use", "id": "t1", "name": "selecionar_componente",
+                    "input": {"id": "sensor-umidade-capacitivo", "ref": "U3"}}]),
+        _mensagem([{"type": "text", "text": "Selecionado."}], stop_reason="end_turn"),
+    ]
+
+    class Cliente:
+        class beta:
+            class messages:
+                @staticmethod
+                def create(**_):
+                    return respostas.pop(0)
+
+    execucao = rodar_agente("pedido", ProvedorClaude(cliente=Cliente()), Ferramentas(base),
+                            registrar=None)
+    assert execucao.terminou and execucao.texto_final == "Selecionado."
+    assert execucao.estado["selecoes"] == {"U3": "sensor-umidade-capacitivo"}

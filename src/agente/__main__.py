@@ -1,6 +1,6 @@
 """Roda o agente uma vez sobre uma especificação, como o ``__main__`` do protótipo.
 
-Uso (precisa da biblioteca google-genai e da chave em GEMINI_API_KEY):
+Uso (precisa da biblioteca anthropic e da chave em ANTHROPIC_API_KEY):
     python -m src.agente [placas/monitor-umidade/spec.yaml]
 
 Mostra o registro do laço, a resposta final, as decisões, as pendências e as redes.
@@ -29,11 +29,11 @@ def montar_pedido(arquivo: Path) -> str:
 
 
 def main(argumentos: list[str]) -> int:
-    from .provedores.gemini import ProvedorGemini
+    from .provedores.claude import ProvedorClaude
     arquivo = Path(argumentos[0]) if argumentos else SPEC
     base = carregar_todos()
     ferramentas = Ferramentas(base, ler_especificacao(arquivo, base))
-    execucao = rodar_agente(montar_pedido(arquivo), ProvedorGemini(), ferramentas)
+    execucao = rodar_agente(montar_pedido(arquivo), ProvedorClaude(), ferramentas)
     print("=== RESPOSTA FINAL ===\n" + execucao.texto_final)
     for titulo, chave in [("DECISÕES", "decisoes"), ("PENDÊNCIAS", "pendencias"),
                           ("REDES", "redes")]:

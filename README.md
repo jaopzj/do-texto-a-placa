@@ -121,9 +121,10 @@ mensagem e o próximo passo, e o estado do projeto não muda. O contrato está n
 
 O laço do agente (`src/agente/laco.py`, vindo do `agente_minimo.py` do protótipo) manda o
 prompt e os contratos das ferramentas (`src/agente/contratos.py`) ao modelo e executa cada
-pedido pelas ferramentas. O modelo fica atrás de um adaptador; o do Gemini está em
-`src/agente/provedores/gemini.py`. Para rodar uma vez sobre a placa de referência (precisa
-de `pip install google-genai` e da chave na variável `GEMINI_API_KEY`, nunca no código):
+pedido pelas ferramentas. O modelo fica atrás de um adaptador; o da API da Anthropic
+(Claude Opus 5.5) está em `src/agente/provedores/claude.py` (ADR-011). Para rodar uma vez
+sobre a placa de referência (precisa de `pip install anthropic==2.8.0` e da chave na
+variável `ANTHROPIC_API_KEY`, nunca no código):
 
 ```bash
 python -m src.agente placas/monitor-umidade/spec.yaml

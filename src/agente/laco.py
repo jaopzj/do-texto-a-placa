@@ -5,7 +5,7 @@ Veio do ``agente_minimo.py`` do protótipo (seção 3, "O LAÇO DO AGENTE"). O q
 - as ferramentas são as reais (``ferramentas.Ferramentas``), que conferem tudo na base;
 - o laço não conhece nenhum provedor de IA. Ele conversa com um objeto ``Provedor``
   (princípio 5 do CLAUDE.md: toda dependência externa fica atrás de um adaptador). O
-  adaptador do Gemini, que o protótipo usava, está em ``provedores/gemini.py``;
+  adaptador da Anthropic está em ``provedores/claude.py`` (ADR-011);
 - cada execução devolve um ``Execucao`` com o texto final, o estado do projeto, as chamadas
   e os tokens, que o eval da Parte 6 vai medir.
 
