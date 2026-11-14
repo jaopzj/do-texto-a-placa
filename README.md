@@ -94,11 +94,36 @@ Com qualquer problema (campo errado, `decidido_por` fora dos dois valores, compo
 regra que não está na base), `ler_especificacao()` levanta `ErroEspecificacao`, com o campo
 de cada erro. As regras estão no ADR-009.
 
+## Ferramentas do agente
+
+O agente não escreve a netlist: ele chama seis ferramentas de `src/agente/ferramentas.py`,
+e o código confere cada pedido contra a base antes de mudar o projeto.
+
+| Ferramenta | O que faz |
+|---|---|
+| `buscar_componente(termo)` | procura na base, sem diferença de maiúsculas, acentos, espaços, `_` e `-` |
+| `ler_dados_componente(id)` | devolve o componente como está no YAML |
+| `selecionar_componente(id, ref)` | põe uma peça da base no projeto; id inexistente ou referência repetida são recusados |
+| `conectar(ref, pino, rede)` | liga um pino (número ou nome da base) de uma peça selecionada a uma rede |
+| `registrar_decisao(decisao, motivo, fonte)` | guarda uma decisão cuja fonte aponta para a base ou para a especificação |
+| `registrar_pendencia(necessidade, motivo)` | guarda o que falta na base, para um humano resolver |
+
+```python
+from src.agente.ferramentas import Ferramentas
+f = Ferramentas()                      # lê a base com carregar_todos()
+f.selecionar_componente("sensor-umidade-capacitivo", "U3")
+f.conectar("U3", "AOUT", "SENSOR")     # {"ok": True, ...}
+f.selecionar_componente("nao-existe", "J9")  # {"ok": False, "erro": "componente_inexistente", ...}
+```
+
+Toda ferramenta devolve um dicionário com `ok`; na recusa, vêm também o código do erro, a
+mensagem e o próximo passo, e o estado do projeto não muda. O contrato está no ADR-010.
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
-carrega a base e roda `tests/test_componentes.py` e `tests/test_especificacao.py`. Um YAML
-com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py` e
+`tests/test_ferramentas.py`. Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura

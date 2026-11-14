@@ -53,3 +53,8 @@
 - Fiz: `src/especificacao.py` com o modelo da especificação (projeto, módulos, alimentação e restrições, cada decisão com `decidido_por`) e `ler_especificacao()`, que valida e confere os ids contra a base (ADR-009); `placas/monitor-umidade/spec.yaml` escrito à mão; `tests/test_especificacao.py`, que também roda no GitHub Actions.
 - Aprendi: a proposta (página 9) previa barra fêmea e montagem por encaixe, mas o ADR-008 trocou para barra macho; a especificação segue a decisão mais nova.
 - Travou: quem decidiu o LCD e as duas camadas segue a proposta (agente), e falta o john confirmar; os valores mínimos de trilha, espaçamento e furo da fábrica não estão anotados no `pecas.md`, então ficaram fora das restrições.
+
+## 2026-11-14 — Marco 4, Parte 3 (ferramentas do agente)
+- Fiz: `src/agente/ferramentas.py` com as seis ferramentas lendo a base de verdade, resultado sempre em dicionário com `ok`, erro com código e próximo passo, e estado que só muda em chamada válida (ADR-010); `tests/test_ferramentas.py`, sem chamar o modelo, também no GitHub Actions.
+- Aprendi: os ids da base usam hífen, então a busca precisa ignorar hífens além de espaços e sublinhados, ou "sensor umidade" (o termo que falhou no protótipo) não acha nada. A fonte de uma decisão só é verificável se apontar para algo que o código confere: componente, regra, pino ou decisão da especificação.
+- Travou: o `agente_minimo.py` do protótipo não está no repositório nem na pasta local, então o laço do agente ainda não existe; não há ferramenta para desfazer uma ligação errada.
