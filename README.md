@@ -130,11 +130,31 @@ variável `ANTHROPIC_API_KEY`, nunca no código):
 python -m src.agente placas/monitor-umidade/spec.yaml
 ```
 
+## Netlist do agente e eval do gabarito
+
+`src/gerar_netlist.py` transforma o estado das ferramentas (`Ferramentas.estado()`) numa
+netlist KiCad, pelo SKiDL, do mesmo jeito que o `circuito.py`: um conector por fileira de
+pinos, símbolo e footprint da base, e os pinos que o agente não ligou na rede NC (ADR-012).
+Antes de montar, confere o estado de novo contra a base e recusa o que não confere.
+
+`src/evals/comparar.py` diz se duas netlists são o mesmo circuito. Ele compara os grupos de
+pinos ligados, com cada pino identificado pela peça e pelo nome na base
+(`"display-lcd-1602-i2c: SDA"`, ou `"esp32-devkitc-v4: GND#14"` quando o nome se repete), e
+ignora o nome das redes, as referências e a ordem. Dentro do container:
+
+```bash
+python -m src.evals.comparar placas/monitor-umidade/gabarito.net outra.net
+```
+
+O comando sai com 0 se as netlists forem equivalentes e com 1 se não forem, mostrando o que
+faltou ou sobrou e com quem cada pino divergente ficou ligado.
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
 carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`,
-`tests/test_ferramentas.py` e `tests/test_agente.py`. Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+`tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py` e
+`tests/test_gerar_netlist.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura
@@ -145,5 +165,5 @@ carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`
 - `docs/diario.md`: diário de bordo
 - `componentes/`: base de componentes
 - `placas/`: placas do projeto (a de referência é `monitor-umidade`)
-- `src/`: código da plataforma
+- `src/`: código da plataforma (`src/evals/`: os evals do agente)
 - `tests/`: testes automáticos

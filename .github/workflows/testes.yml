@@ -44,5 +44,5 @@ jobs:
               print(f'  - {comp.id} ({comp.status}, {len(comp.pinos)} pinos)')
           "
 
-      - name: Testes da base, da especificação e do agente
-        run: python -m pytest tests/test_componentes.py tests/test_especificacao.py tests/test_ferramentas.py tests/test_agente.py -v -rs
+      - name: Testes da base, da especificação, do agente e do eval
+        run: python -m pytest tests/test_componentes.py tests/test_especificacao.py tests/test_ferramentas.py tests/test_agente.py tests/test_comparar.py tests/test_gerar_netlist.py -v -rs
