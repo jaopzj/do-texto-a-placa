@@ -119,11 +119,21 @@ f.selecionar_componente("nao-existe", "J9")  # {"ok": False, "erro": "componente
 Toda ferramenta devolve um dicionário com `ok`; na recusa, vêm também o código do erro, a
 mensagem e o próximo passo, e o estado do projeto não muda. O contrato está no ADR-010.
 
+O laço do agente (`src/agente/laco.py`, vindo do `agente_minimo.py` do protótipo) manda o
+prompt e os contratos das ferramentas (`src/agente/contratos.py`) ao modelo e executa cada
+pedido pelas ferramentas. O modelo fica atrás de um adaptador; o do Gemini está em
+`src/agente/provedores/gemini.py`. Para rodar uma vez sobre a placa de referência (precisa
+de `pip install google-genai` e da chave na variável `GEMINI_API_KEY`, nunca no código):
+
+```bash
+python -m src.agente placas/monitor-umidade/spec.yaml
+```
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
-carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py` e
-`tests/test_ferramentas.py`. Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`,
+`tests/test_ferramentas.py` e `tests/test_agente.py`. Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura

@@ -57,4 +57,5 @@
 ## 2026-11-14 — Marco 4, Parte 3 (ferramentas do agente)
 - Fiz: `src/agente/ferramentas.py` com as seis ferramentas lendo a base de verdade, resultado sempre em dicionário com `ok`, erro com código e próximo passo, e estado que só muda em chamada válida (ADR-010); `tests/test_ferramentas.py`, sem chamar o modelo, também no GitHub Actions.
 - Aprendi: os ids da base usam hífen, então a busca precisa ignorar hífens além de espaços e sublinhados, ou "sensor umidade" (o termo que falhou no protótipo) não acha nada. A fonte de uma decisão só é verificável se apontar para algo que o código confere: componente, regra, pino ou decisão da especificação.
-- Travou: o `agente_minimo.py` do protótipo não está no repositório nem na pasta local, então o laço do agente ainda não existe; não há ferramenta para desfazer uma ligação errada.
+- Fiz também: o john colou o `agente_minimo.py` do protótipo, e ele virou `src/agente/contratos.py` (os seis contratos), `src/agente/laco.py` (o laço, sem provedor) e `src/agente/provedores/gemini.py` (o adaptador do Gemini); `tests/test_agente.py` testa o laço com um provedor falso.
+- Travou: não há ferramenta para desfazer uma ligação errada; a biblioteca `google-genai` ainda não está na imagem Docker, então o agente ainda não roda no container.

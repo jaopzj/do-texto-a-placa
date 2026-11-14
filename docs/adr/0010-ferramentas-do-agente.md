@@ -1,4 +1,4 @@
-# ADR-010: Contrato das ferramentas do agente
+# ADR-010: Ferramentas, contratos e laço do agente
 
 Status: aceito · Data: 2026-11-14
 
@@ -7,9 +7,10 @@ Status: aceito · Data: 2026-11-14
 A Parte 3 do Marco 4 pede seis ferramentas reais para o agente, que consultam a base de
 componentes: `buscar_componente`, `ler_dados_componente`, `selecionar_componente`,
 `conectar`, `registrar_decisao` (com fonte obrigatória) e `registrar_pendencia`. O guia
-manda trazer o `agente_minimo.py` do protótipo para `src/agente/`, mas esse arquivo não está
-no repositório nem na pasta local do john; só o trecho do laço aparece na proposta
-(página 10).
+manda trazer o `agente_minimo.py` do protótipo para `src/agente/`. O protótipo tinha três
+partes num arquivo só: ferramentas falsas com uma biblioteca em memória, os contratos que o
+modelo enxerga e o laço, que chamava o Gemini direto (`google-genai`, modelo
+`gemini-3.5-flash`).
 
 O teste 2 do protótipo (proposta, páginas 11 e 12) mostrou o risco: sem o conversor na
 biblioteca, o agente registrou "use um conversor" sem procurar a peça, e nada avisou que ela
@@ -24,8 +25,24 @@ ignorar hífens, que são o separador dos ids da base.
 
 As ferramentas ficam em `src/agente/ferramentas.py`, na classe `Ferramentas`, que guarda o
 estado do projeto (seleções, ligações, decisões e pendências) e lê a base só por
-`carregar_todos()`. O laço do agente e o adaptador do provedor de IA ficam para as partes
-seguintes; este módulo não chama nenhum modelo.
+`carregar_todos()`. As três partes do protótipo viram três módulos:
+
+- `src/agente/ferramentas.py`: as ferramentas reais (abaixo), sem nenhum modelo de IA;
+- `src/agente/contratos.py`: os contratos das seis ferramentas, em JSON Schema neutro. As
+  descrições são parte do prompt; os testes conferem que cada contrato bate com os
+  argumentos que a ferramenta aceita;
+- `src/agente/laco.py`: o laço PENSA, AGE, OBSERVA, com o prompt de sistema do protótipo
+  acrescido das regras de pendência e de fonte, e `VERSAO_DO_PROMPT` para o eval. O laço
+  não conhece provedor: conversa com um objeto `Provedor` (`iniciar` e `continuar`), e
+  devolve uma `Execucao` com texto final, estado, chamadas, tentativas inexistentes e
+  tokens.
+
+O Gemini fica atrás de um adaptador, `src/agente/provedores/gemini.py`, o único módulo que
+importa `google-genai` (princípio 5 do CLAUDE.md). Ele mantém a chamada do protótipo, com a
+chamada automática de funções desligada, e importa a biblioteca só quando é criado, para
+que o resto do projeto e os testes funcionem sem ela. A chave vem de `GEMINI_API_KEY`.
+`python -m src.agente` roda o agente uma vez sobre o `spec.yaml`, como o `__main__` do
+protótipo.
 
 Contrato comum:
 
@@ -85,4 +102,10 @@ Regras de cada ferramenta:
 - `estado()` entrega seleções, ligações e redes para o gerador de netlist da Parte 4. As
   referências do agente (`U1`...) são por peça, e o gerador é que vai abrir cada peça nos
   seus conectores (J1, J2...), como a tabela `PECAS` do `circuito.py`.
-- `tests/test_ferramentas.py` só precisa do Pydantic e do PyYAML e roda no GitHub Actions.
+- `tests/test_ferramentas.py` e `tests/test_agente.py` só precisam do Pydantic e do PyYAML
+  e rodam no GitHub Actions. O laço é testado com um provedor falso; o adaptador do Gemini
+  só na tradução das respostas, e esses testes são pulados sem `google-genai`.
+- `google-genai` ainda não está em `docker/requirements.txt`: entra, com versão fixada, quando
+  o agente for rodar de verdade (Parte 6), com a aprovação do john.
+- Trocar de provedor é escrever outro adaptador com `iniciar` e `continuar`; o laço, os
+  contratos e as ferramentas não mudam.
