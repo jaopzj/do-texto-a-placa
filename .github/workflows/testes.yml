@@ -1,10 +1,13 @@
-# Validação automática da base de componentes (Marco 3, Parte 5).
+# Validação automática da base de componentes (Marco 3, Parte 5), da especificação da
+# placa de referência (Marco 4, Parte 2) e das ferramentas e do laço do agente (Marco 4,
+# Parte 3).
 #
 # Roda a cada push e a cada pull request. Se um componente sair do formato, o job falha
 # e o pull request fica com X vermelho.
 #
 # O runner do GitHub não tem o KiCad nem o SKiDL, que só existem no container. Por isso
-# aqui roda só tests/test_componentes.py; os testes da placa e da netlist continuam no
+# aqui rodam só tests/test_componentes.py, tests/test_especificacao.py,
+# tests/test_ferramentas.py e tests/test_agente.py; os testes da placa e da netlist continuam no
 # "make testes", dentro do container. As versões abaixo são as mesmas do container
 # (docker/requirements.txt não fixa versões; ver docs/adr/0006 e o README).
 name: testes
@@ -41,5 +44,5 @@ jobs:
               print(f'  - {comp.id} ({comp.status}, {len(comp.pinos)} pinos)')
           "
 
-      - name: Testes da base de componentes
-        run: python -m pytest tests/test_componentes.py -v -rs
+      - name: Testes da base, da especificação, do agente e do eval
+        run: python -m pytest tests/test_componentes.py tests/test_especificacao.py tests/test_ferramentas.py tests/test_agente.py tests/test_comparar.py tests/test_gerar_netlist.py tests/test_rodar.py tests/test_terminal.py -v -rs

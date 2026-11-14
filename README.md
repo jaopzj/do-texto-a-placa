@@ -76,11 +76,110 @@ seu símbolo e footprint (ADR-007). O
 `make testes` também confere se o símbolo e o footprint de cada peça existem nas
 bibliotecas do KiCad do container.
 
+## Especificação da placa
+
+A entrada do agente (Marco 4) é a especificação da placa, um YAML no formato do modelo
+`src/especificacao.py`. A da placa de referência é `placas/monitor-umidade/spec.yaml`:
+projeto, módulos (cada um com o id de um componente da base), alimentação e restrições.
+Cada decisão diz quem a tomou em `decidido_por` (`usuario` ou `agente`), e uma decisão do
+agente sempre traz motivo e fonte.
+
+```python
+from pathlib import Path
+from src.especificacao import ler_especificacao
+spec = ler_especificacao(Path("placas/monitor-umidade/spec.yaml"))
+```
+
+Com qualquer problema (campo errado, `decidido_por` fora dos dois valores, componente ou
+regra que não está na base), `ler_especificacao()` levanta `ErroEspecificacao`, com o campo
+de cada erro. As regras estão no ADR-009.
+
+## Ferramentas do agente
+
+O agente não escreve a netlist: ele chama seis ferramentas de `src/agente/ferramentas.py`,
+e o código confere cada pedido contra a base antes de mudar o projeto.
+
+| Ferramenta | O que faz |
+|---|---|
+| `buscar_componente(termo)` | procura na base, sem diferença de maiúsculas, acentos, espaços, `_` e `-` |
+| `ler_dados_componente(id)` | devolve o componente como está no YAML |
+| `selecionar_componente(id, ref)` | põe uma peça da base no projeto; id inexistente ou referência repetida são recusados |
+| `conectar(ref, pino, rede)` | liga um pino (número ou nome da base) de uma peça selecionada a uma rede |
+| `registrar_decisao(decisao, motivo, fonte)` | guarda uma decisão cuja fonte aponta para a base ou para a especificação |
+| `registrar_pendencia(necessidade, motivo)` | guarda o que falta na base, para um humano resolver |
+
+```python
+from src.agente.ferramentas import Ferramentas
+f = Ferramentas()                      # lê a base com carregar_todos()
+f.selecionar_componente("sensor-umidade-capacitivo", "U3")
+f.conectar("U3", "AOUT", "SENSOR")     # {"ok": True, ...}
+f.selecionar_componente("nao-existe", "J9")  # {"ok": False, "erro": "componente_inexistente", ...}
+```
+
+Toda ferramenta devolve um dicionário com `ok`; na recusa, vêm também o código do erro, a
+mensagem e o próximo passo, e o estado do projeto não muda. O contrato está no ADR-010.
+
+O laço do agente (`src/agente/laco.py`, vindo do `agente_minimo.py` do protótipo) manda o
+prompt e os contratos das ferramentas (`src/agente/contratos.py`) ao modelo e executa cada
+pedido pelas ferramentas. O modelo fica atrás de um adaptador; o da API da Anthropic
+(Claude Haiku 5.5 por padrão, ADR-014) está em `src/agente/provedores/claude.py` (ADR-011). Para rodar uma vez
+sobre a placa de referência (a biblioteca `anthropic` já está na imagem; a chave vai na
+variável `ANTHROPIC_API_KEY`, nunca no código):
+
+```bash
+python -m src.agente placas/monitor-umidade/spec.yaml --esforco medium
+```
+
+## Netlist do agente e eval do gabarito
+
+`src/gerar_netlist.py` transforma o estado das ferramentas (`Ferramentas.estado()`) numa
+netlist KiCad, pelo SKiDL, do mesmo jeito que o `circuito.py`: um conector por fileira de
+pinos, símbolo e footprint da base, e os pinos que o agente não ligou na rede NC (ADR-012).
+Antes de montar, confere o estado de novo contra a base e recusa o que não confere.
+
+`src/evals/comparar.py` diz se duas netlists são o mesmo circuito. Ele compara os grupos de
+pinos ligados, com cada pino identificado pela peça e pelo nome na base
+(`"display-lcd-1602-i2c: SDA"`, ou `"esp32-devkitc-v4: GND#14"` quando o nome se repete), e
+ignora o nome das redes, as referências e a ordem. Dentro do container:
+
+```bash
+python -m src.evals.comparar placas/monitor-umidade/gabarito.net outra.net
+```
+
+O comando sai com 0 se as netlists forem equivalentes e com 1 se não forem, mostrando o que
+faltou ou sobrou e com quem cada pino divergente ficou ligado.
+
+## Eval do gabarito (`make eval`)
+
+`src/evals/rodar.py` roda o agente N vezes sobre o `spec.yaml` e, para cada execução, gera a
+netlist, compara com o `gabarito.net` e registra se bateu, quantas tentativas de peça
+inexistente houve, quantas chamadas e quanto custou (ADR-013). A meta é 4 de 5 execuções
+equivalentes. Chama a API da Anthropic, então custa dinheiro:
+
+```bash
+export ANTHROPIC_API_KEY=...      # só no terminal; nunca em arquivo ou commit
+make eval N=5 OBS="primeira rodada"
+```
+
+`MODELO` e `ESFORCO` trocam o modelo e o esforço (padrão: `claude-haiku-5-5` e `high`).
+Os modelos com preço conhecido são `claude-opus-5-5`, `claude-sonnet-5-5` e
+`claude-haiku-5-5` (ADR-014); o esforço vai de `low` a `max`. Por exemplo:
+
+```bash
+make eval N=1 MODELO=claude-opus-5-5 ESFORCO=medium OBS="opus medium"
+```
+
+Enquanto roda, o terminal mostra cada passo do agente (tempo, tokens, custo até agora e o
+que ele pensou) e cada ferramenta (`ok` ou `ERRO` com o motivo). A rodada entra na tabela
+de `docs/evals.md`, e o registro completo de cada execução fica em `saida/evals/`.
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
-carrega a base e roda `tests/test_componentes.py`. Um YAML com erro deixa o pull request
-com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`,
+`tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py`,
+`tests/test_gerar_netlist.py`, `tests/test_rodar.py` e `tests/test_terminal.py` (a parte que
+não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura
@@ -91,5 +190,5 @@ com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist
 - `docs/diario.md`: diário de bordo
 - `componentes/`: base de componentes
 - `placas/`: placas do projeto (a de referência é `monitor-umidade`)
-- `src/`: código da plataforma
+- `src/`: código da plataforma (`src/evals/`: os evals do agente)
 - `tests/`: testes automáticos
