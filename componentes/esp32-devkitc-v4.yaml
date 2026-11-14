@@ -2,8 +2,18 @@
 id: esp32-devkitc-v4
 descricao: Placa de desenvolvimento baseada no ESP32-WROOM-32E, com Wi-Fi, Bluetooth, GPIOs e interfaces de comunicação.
 
-kicad_simbolo: Connector_Generic:Conn_01x03
-kicad_footprint: Connector_PinSocket_2.54mm:PinSocket_1x03_P2.54mm_Vertical
+# Duas fileiras de 19 pinos (ADR-007): J2 com os pinos 1 a 19 e J3 com os pinos 20 a 38,
+# na ordem da tabela "1.1.5 Header Block" (esp-dev-kits-en-master-esp32.pdf, página 5).
+# Barra de pinos macho, como o LCD e o conversor (ADR-008).
+conectores:
+  - nome: J2
+    kicad_simbolo: Connector_Generic:Conn_01x19
+    kicad_footprint: Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical
+    pinos: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+  - nome: J3
+    kicad_simbolo: Connector_Generic:Conn_01x19
+    kicad_footprint: Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical
+    pinos: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
 
 alimentacao_min: 3.0
 alimentacao_max: 3.6
@@ -118,7 +128,7 @@ pinos:
     nome: D2
     tipo: entrada_saida
     tensao_max: 3.3
-    funcoes: ["GPIO9", "SPIHD", "Flash"]
+    funcoes: ["GPIO9", "D2", "Flash"]
     fonte: {documento: "esp-dev-kits-en-master-esp32.pdf", pagina: 5}
 
   - numero: 17
@@ -255,7 +265,7 @@ pinos:
     nome: D1
     tipo: entrada_saida
     tensao_max: 3.3
-    funcoes: ["GPIO8", "SPIHD", "Flash"]
+    funcoes: ["GPIO8", "D1", "Flash"]
     fonte: {documento: "esp-dev-kits-en-master-esp32.pdf", pagina: 5}
 
   - numero: 37

@@ -41,13 +41,13 @@ Exemplo (o ESP32 dividido nas duas fileiras):
 
 ```yaml
 conectores:
-  - nome: esquerda
+  - nome: J2
     kicad_simbolo: Connector_Generic:Conn_01x19
-    kicad_footprint: Connector_PinSocket_2.54mm:PinSocket_1x19_P2.54mm_Vertical
+    kicad_footprint: Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical
     pinos: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
-  - nome: direita
+  - nome: J3
     kicad_simbolo: Connector_Generic:Conn_01x19
-    kicad_footprint: Connector_PinSocket_2.54mm:PinSocket_1x19_P2.54mm_Vertical
+    kicad_footprint: Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical
     pinos: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
 ```
 
