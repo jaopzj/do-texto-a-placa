@@ -1,4 +1,4 @@
-# ADR-014: Claude Haiku 5.5 no agente e andamento no terminal
+# ADR-014: Claude Haiku 5.5 como modelo padrão e andamento no terminal
 
 Status: aceito · Data: 2026-11-14
 
@@ -22,9 +22,10 @@ tamanho do prompt de cada pedido (até 100 mil tokens e acima disso).
   A faixa é escolhida pelo prompt inteiro do pedido (entrada comum mais cache). Os modelos
   de `SEM_RESERVA` (hoje só o Haiku) vão sem `fallbacks` e sem o beta correspondente; uma
   recusa do Haiku encerra o laço com o motivo, como já acontecia quando a recusa persistia.
-  O padrão não muda: continua o Opus 5.5 com esforço `high` (ADR-011) até uma rodada do eval
-  mostrar que outro modelo atinge a meta. O Haiku é escolhido com `MODELO=claude-haiku-5-5`
-  no `make eval` ou `--modelo` no `python -m src.agente`.
+  O Haiku 5.5 passa a ser o modelo padrão, com esforço `high`, no lugar do Opus 5.5 do
+  ADR-011: o john decidiu assim em 2026-11-14, depois da primeira medida de custo, antes de
+  uma rodada do Haiku no eval. Os outros continuam disponíveis com `MODELO=` no `make eval`
+  ou `--modelo` no `python -m src.agente`.
 - **Andamento.** O laço passa a emitir um `Evento` por resposta do modelo e por ferramenta
   executada (`eventos=`), sem mudar o registro completo (`registrar=`), que continua indo
   para o `registro.txt` de cada execução. `src/agente/terminal.py` transforma os eventos em
@@ -41,5 +42,7 @@ tamanho do prompt de cada pedido (até 100 mil tokens e acima disso).
 - Sem modelo reserva, uma recusa do Haiku por segurança conta como execução que não
   terminou. Se isso aparecer no eval, fica registrado no motivo da execução.
 - O eval, chamado de outro código sem `avisar`, fica em silêncio; só o `main` imprime.
-- Mudar o padrão para o Haiku (ou outro modelo) depende de uma rodada registrada em
-  `docs/evals.md` que atinja a meta, e de um novo ADR.
+- O Haiku virou padrão sem uma rodada do eval que mostre a meta atingida. A primeira rodada
+  com ele (`make eval N=5`) diz se ele acerta o gabarito tão bem quanto o Opus; se não
+  atingir a meta, o caminho do guia é melhorar o prompt e as descrições, ou voltar o padrão
+  com outro ADR.

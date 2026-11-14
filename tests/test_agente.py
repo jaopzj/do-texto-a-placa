@@ -213,10 +213,11 @@ def test_claude_monta_a_conversa_sem_chamar_a_api():
         class beta:
             messages = Mensagens()
 
-    provedor = ProvedorClaude(cliente=Cliente())
+    assert MODELO == "claude-haiku-5-5"                       # o padrão (ADR-014)
+    provedor = ProvedorClaude("claude-opus-5-5", cliente=Cliente())
     primeira = provedor.iniciar(SISTEMA, CONTRATOS, "pedido")
     p = pedidos[0]
-    assert p["model"] == MODELO == "claude-opus-5-5"
+    assert p["model"] == "claude-opus-5-5"
     assert p["system"] == SISTEMA and p["thinking"] == {"type": "adaptive"}
     assert p["output_config"] == {"effort": "high"}
     assert p["fallbacks"] == "default" and p["betas"] == ["server-side-fallback-2026-07-01"]

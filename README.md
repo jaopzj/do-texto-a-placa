@@ -122,12 +122,12 @@ mensagem e o próximo passo, e o estado do projeto não muda. O contrato está n
 O laço do agente (`src/agente/laco.py`, vindo do `agente_minimo.py` do protótipo) manda o
 prompt e os contratos das ferramentas (`src/agente/contratos.py`) ao modelo e executa cada
 pedido pelas ferramentas. O modelo fica atrás de um adaptador; o da API da Anthropic
-(Claude Opus 5.5) está em `src/agente/provedores/claude.py` (ADR-011). Para rodar uma vez
+(Claude Haiku 5.5 por padrão, ADR-014) está em `src/agente/provedores/claude.py` (ADR-011). Para rodar uma vez
 sobre a placa de referência (a biblioteca `anthropic` já está na imagem; a chave vai na
 variável `ANTHROPIC_API_KEY`, nunca no código):
 
 ```bash
-python -m src.agente placas/monitor-umidade/spec.yaml --modelo claude-haiku-5-5 --esforco medium
+python -m src.agente placas/monitor-umidade/spec.yaml --esforco medium
 ```
 
 ## Netlist do agente e eval do gabarito
@@ -161,12 +161,12 @@ export ANTHROPIC_API_KEY=...      # só no terminal; nunca em arquivo ou commit
 make eval N=5 OBS="primeira rodada"
 ```
 
-`MODELO` e `ESFORCO` trocam o modelo e o esforço (padrão: `claude-opus-5-5` e `high`).
+`MODELO` e `ESFORCO` trocam o modelo e o esforço (padrão: `claude-haiku-5-5` e `high`).
 Os modelos com preço conhecido são `claude-opus-5-5`, `claude-sonnet-5-5` e
 `claude-haiku-5-5` (ADR-014); o esforço vai de `low` a `max`. Por exemplo:
 
 ```bash
-make eval N=1 MODELO=claude-haiku-5-5 ESFORCO=medium OBS="haiku medium"
+make eval N=1 MODELO=claude-opus-5-5 ESFORCO=medium OBS="opus medium"
 ```
 
 Enquanto roda, o terminal mostra cada passo do agente (tempo, tokens, custo até agora e o

@@ -71,3 +71,4 @@
 - Aprendi: reconstruir a imagem com o `requirements.txt` sem versões trocaria o SKiDL por baixo; fixar antes de somar a `anthropic` deixa a mudança só no que foi pedido. A entrada lida do cache custa 1/20 da entrada comum no Opus 5.5, então somar tudo num número só superestimava o custo.
 - Travou: a rodada de verdade (N=5, com a API) ainda não foi feita; ela depende da chave do john e custa dinheiro, então a tabela de `docs/evals.md` está vazia.
 - Fiz depois: a primeira execução do john (Opus 5.5, `high`) bateu com o gabarito e custou US$ 0,34, 60% em raciocínio. A pedido dele, entrou o Claude Haiku 5.5 (preço em duas faixas, sem modelo reserva) e o andamento no terminal: cada passo com tempo, tokens e custo, e cada ferramenta com `ok` ou `ERRO` (ADR-014).
+- Fiz depois: o john pediu o Haiku 5.5 como modelo padrão, no `make eval` e no `python -m src.agente` (ADR-014). Falta a primeira rodada dele no eval.

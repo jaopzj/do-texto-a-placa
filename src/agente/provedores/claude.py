@@ -6,8 +6,9 @@ conversa e devolve cada resposta no formato neutro (``Resposta``).
 
 Escolhas:
 
-- modelo ``claude-opus-5-5``, com raciocínio adaptativo (o padrão do modelo) e esforço
-  ``high``, porque o trabalho é um laço de várias chamadas de ferramenta;
+- modelo ``claude-haiku-5-5`` por padrão (escolha do john, ADR-014; era o
+  ``claude-opus-5-5`` no ADR-011), com raciocínio adaptativo e esforço ``high``, porque o
+  trabalho é um laço de várias chamadas de ferramenta;
 - o conteúdo inteiro de cada resposta volta para o histórico sem alteração, inclusive os
   blocos de raciocínio, como a API exige;
 - os resultados de todas as ferramentas de um passo voltam numa única mensagem, com
@@ -31,7 +32,7 @@ import json
 
 from ..laco import Chamada, Resposta
 
-MODELO = "claude-opus-5-5"
+MODELO = "claude-haiku-5-5"
 ESFORCO = "high"
 MAX_TOKENS = 16000
 BETA_FALLBACK = "server-side-fallback-2026-07-01"

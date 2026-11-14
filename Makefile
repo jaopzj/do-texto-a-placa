@@ -93,9 +93,9 @@ testes:
 # cada netlist com o gabarito.net e acrescenta a rodada a docs/evals.md. Chama a API da
 # Anthropic (custa dinheiro): a chave vem da variável ANTHROPIC_API_KEY do seu terminal,
 # repassada ao container só neste alvo, e nunca fica em arquivo.
-# Ex.: make eval N=5 MODELO=claude-sonnet-5-5 ESFORCO=medium OBS="primeira rodada"
+# Ex.: make eval N=5 MODELO=claude-opus-5-5 ESFORCO=medium OBS="primeira rodada"
 N ?= 5
-MODELO ?= claude-opus-5-5
+MODELO ?= claude-haiku-5-5
 ESFORCO ?= high
 OBS ?=
 eval:
