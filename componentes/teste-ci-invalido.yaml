@@ -1,0 +1,9 @@
+# Arquivo de teste do CI: deve deixar o workflow vermelho. Será removido no commit seguinte.
+id: teste-ci-invalido
+descricao: Componente propositalmente inválido para testar o GitHub Actions
+kicad_simbolo: Connector_Generic:Conn_01x03
+kicad_footprint: Connector_PinSocket_2.54mm:PinSocket_1x03_P2.54mm_Vertical
+alimentacao_min: 3.3
+alimentacao_max: 5.5
+pinos:
+  - { numero: 1, nome: GND, tipo: terra, tensao_maxima: 5, fonte: { documento: medição própria } }
