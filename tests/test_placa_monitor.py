@@ -121,8 +121,9 @@ def test_drc_sem_violacoes(netlist, tmp_path):
     assert "** Found 0 DRC violations **" in texto
     assert "** Found 0 Footprint errors **" in texto
     # Antes do roteamento, as únicas pendências são as ligações ainda sem trilha:
-    # 22 pads ligados em 8 redes = 22 - 8 = 14 ligações.
-    assert "** Found 14 unconnected pads **" in texto
+    # 23 pads ligados em 8 redes = 23 - 8 = 15 ligações (desde o Marco 3, Parte 6: o
+    # ESP32 de 38 pinos tem três GND, e o sensor HW-101 só três pinos).
+    assert "** Found 15 unconnected pads **" in texto
     assert set(re.findall(r"^\[(\w+)\]", texto, flags=re.M)) == {"unconnected_items"}
 
 
@@ -167,9 +168,10 @@ def test_verificar_detecta_sobreposicao(netlist, tmp_path):
 def test_verificar_detecta_rede_trocada(netlist, tmp_path):
     placa, arquivo = _gerar(netlist, tmp_path)
     b = pcbnew.LoadBoard(str(placa))
-    pad = next(p for p in b.FindFootprintByReference("J4").Pads() if p.GetNumber() == "1")
+    # Pad 3 do J4 é o AOUT do sensor HW-101, na rede SENSOR.
+    pad = next(p for p in b.FindFootprintByReference("J4").Pads() if p.GetNumber() == "3")
     pad.SetNet(b.FindNet("GND"))
     problemas = verificar_placa.verificar(
         b, montar_netlist(str(netlist)), aplicar_posicoes.ler_posicoes(str(arquivo))
     )
-    assert "pad ('J4', '1'): rede 'GND', netlist pede 'SENSOR'" in problemas
+    assert "pad ('J4', '3'): rede 'GND', netlist pede 'SENSOR'" in problemas
