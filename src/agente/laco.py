@@ -11,9 +11,10 @@ Veio do ``agente_minimo.py`` do protótipo (seção 3, "O LAÇO DO AGENTE"). O q
 
 O laço não executa código gerado pelo modelo: só chama as seis ferramentas, pelo nome.
 """
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Callable, Literal, Protocol
 
 from .contratos import CONTRATOS
 from .ferramentas import Ferramentas
@@ -75,6 +76,21 @@ class Provedor(Protocol):
     def continuar(self, resultados: list[tuple[Chamada, dict]]) -> Resposta: ...
 
 
+@dataclass(frozen=True)
+class Evento:
+    """O que acontece no laço, para quem acompanha (``terminal.Terminal``).
+
+    ``resposta``: o modelo respondeu (com ``resposta`` e ``segundos`` de espera).
+    ``chamada``: uma ferramenta rodou (com ``chamada`` e ``saida``).
+    """
+    tipo: Literal["resposta", "chamada"]
+    passo: int
+    resposta: Resposta | None = None
+    segundos: float = 0.0
+    chamada: Chamada | None = None
+    saida: dict | None = None
+
+
 @dataclass
 class Execucao:
     """O resultado de uma execução do agente."""
@@ -93,17 +109,23 @@ class Execucao:
 
 def rodar_agente(pedido: str, provedor: Provedor, ferramentas: Ferramentas | None = None,
                  max_passos: int = 30,
-                 registrar: Callable[[str], None] | None = print) -> Execucao:
+                 registrar: Callable[[str], None] | None = print,
+                 eventos: Callable[[Evento], None] | None = None) -> Execucao:
     """Roda o agente sobre ``pedido`` até ele parar de pedir ferramentas ou acabar os passos.
 
-    ``registrar`` recebe cada linha do registro (PENSA, AGE, OBSERVA); ``None`` silencia.
+    ``registrar`` recebe cada linha do registro completo (PENSA, AGE, OBSERVA); ``None``
+    silencia. ``eventos`` recebe cada ``Evento``, para mostrar o andamento no terminal.
     """
     ferramentas = Ferramentas() if ferramentas is None else ferramentas
     log = registrar or (lambda _linha: None)
+    avisar = eventos or (lambda _evento: None)
     execucao = Execucao(texto_final="", terminou=False, passos=0)
 
+    inicio = time.monotonic()
     resposta = provedor.iniciar(SISTEMA, CONTRATOS, pedido)
     for passo in range(1, max_passos + 1):
+        avisar(Evento("resposta", passo, resposta=resposta,
+                      segundos=time.monotonic() - inicio))
         execucao.passos = passo
         execucao.tokens_entrada += resposta.tokens_entrada
         execucao.tokens_saida += resposta.tokens_saida
@@ -123,11 +145,13 @@ def rodar_agente(pedido: str, provedor: Provedor, ferramentas: Ferramentas | Non
             log(f"[passo {passo}] AGE: {chamada.nome}({chamada.argumentos})")
             saida = ferramentas.executar_ferramenta(chamada.nome, chamada.argumentos)
             log(f"[passo {passo}] OBSERVA: {saida}")
+            avisar(Evento("chamada", passo, chamada=chamada, saida=saida))
             resultados.append((chamada, saida))
         execucao.chamadas.extend(resultados)
         if passo == max_passos:
             execucao.texto_final = "Limite de passos atingido sem conclusão."
             break
+        inicio = time.monotonic()
         resposta = provedor.continuar(resultados)
 
     execucao.estado = ferramentas.estado()

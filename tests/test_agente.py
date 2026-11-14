@@ -260,3 +260,72 @@ def test_laco_com_o_adaptador_da_anthropic(base):
                             registrar=None)
     assert execucao.terminou and execucao.texto_final == "Selecionado."
     assert execucao.estado["selecoes"] == {"U3": "sensor-umidade-capacitivo"}
+
+
+def _cliente_que_guarda(pedidos):
+    beta = pytest.importorskip("anthropic.types.beta")
+    fim = beta.BetaMessage.model_validate({
+        "id": "m", "type": "message", "role": "assistant", "model": "claude-haiku-5-5",
+        "content": [{"type": "text", "text": "Fim."}], "stop_reason": "end_turn",
+        "stop_sequence": None, "usage": {"input_tokens": 1, "output_tokens": 1}})
+
+    class Mensagens:
+        def create(self, **parametros):
+            pedidos.append(parametros)
+            return fim
+
+    class Cliente:
+        class beta:
+            messages = Mensagens()
+    return Cliente()
+
+
+def test_haiku_vai_sem_modelo_reserva():
+    # O Haiku 5.5 não tem modelo reserva no servidor: "fallbacks" no pedido dá erro 400.
+    from src.agente.provedores.claude import ProvedorClaude
+    pedidos = []
+    ProvedorClaude("claude-haiku-5-5", _cliente_que_guarda(pedidos), "medium").iniciar(
+        SISTEMA, CONTRATOS, "pedido")
+    [p] = pedidos
+    assert p["model"] == "claude-haiku-5-5" and p["output_config"] == {"effort": "medium"}
+    assert "fallbacks" not in p and "betas" not in p
+    assert p["thinking"] == {"type": "adaptive"}
+
+
+def test_opus_e_sonnet_vao_com_modelo_reserva():
+    from src.agente.provedores.claude import ProvedorClaude
+    for modelo in ("claude-opus-5-5", "claude-sonnet-5-5"):
+        pedidos = []
+        ProvedorClaude(modelo, _cliente_que_guarda(pedidos)).iniciar(SISTEMA, CONTRATOS, "p")
+        assert pedidos[0]["fallbacks"] == "default", modelo
+
+
+def test_laco_avisa_cada_resposta_e_cada_chamada(base):
+    from src.agente.laco import Evento
+    provedor = ProvedorFalso([
+        _pede(("buscar_componente", {"termo": "umidade"}),
+              ("selecionar_componente", {"id": "nao-existe", "ref": "U9"}), custo_usd=0.01),
+        Resposta(texto="Pronto.", custo_usd=0.02),
+    ])
+    eventos: list[Evento] = []
+    rodar_agente("pedido", provedor, Ferramentas(base), registrar=None, eventos=eventos.append)
+    assert [(e.tipo, e.passo) for e in eventos] == [
+        ("resposta", 1), ("chamada", 1), ("chamada", 1), ("resposta", 2)]
+    assert eventos[1].saida["ok"] and not eventos[2].saida["ok"]
+    assert eventos[3].resposta.texto == "Pronto." and eventos[0].segundos >= 0
+
+
+def test_main_do_agente_aceita_modelo_e_esforco(monkeypatch, capsys):
+    import src.agente.provedores.claude as claude
+    from src.agente import __main__ as principal
+    criados = []
+
+    def falso(modelo, esforco):
+        criados.append((modelo, esforco))
+        return ProvedorFalso([Resposta(texto="Nada a fazer.")])
+    monkeypatch.setattr(claude, "ProvedorClaude", falso)
+    assert principal.main(["--modelo", "claude-haiku-5-5", "--esforco", "low"]) == 0
+    assert criados == [("claude-haiku-5-5", "low")]
+    saida = capsys.readouterr().out
+    assert "claude-haiku-5-5 · esforço low" in saida and "passo 1" in saida
+    assert "=== RESPOSTA FINAL ===" in saida and "Nada a fazer." in saida

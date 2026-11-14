@@ -30,6 +30,7 @@ from pathlib import Path
 
 from ..agente.ferramentas import Ferramentas
 from ..agente.laco import VERSAO_DO_PROMPT, Provedor, montar_pedido, rodar_agente
+from ..agente.terminal import Terminal, dolares
 from ..componentes.carregar import carregar_todos
 from ..componentes.modelo import Componente
 from ..especificacao import ler_especificacao
@@ -102,16 +103,22 @@ class Rodada:
 
 
 def executar_uma(indice: int, provedor: Provedor, spec: Path, gabarito: Path,
-                 base: dict[str, Componente], pasta: Path) -> ResultadoExecucao:
-    """Roda o agente uma vez, mede contra o gabarito e grava os arquivos em ``pasta``."""
+                 base: dict[str, Componente], pasta: Path,
+                 terminal: Terminal | None = None) -> ResultadoExecucao:
+    """Roda o agente uma vez, mede contra o gabarito e grava os arquivos em ``pasta``.
+
+    Com ``terminal``, mostra cada passo do agente e cada etapa da medida enquanto acontece.
+    """
     pasta.mkdir(parents=True, exist_ok=True)
+    info = terminal.info if terminal else (lambda _m: None)
     linhas: list[str] = []
     inicio = time.monotonic()
     ferramentas = Ferramentas(base, ler_especificacao(spec, base))
     try:
         execucao = rodar_agente(montar_pedido(spec), provedor, ferramentas,
-                                registrar=linhas.append)
+                                registrar=linhas.append, eventos=terminal)
     except Exception as erro:          # a API pode falhar (rede, chave, limite de uso)
+        info(f"o agente falhou: {type(erro).__name__}: {erro}")
         (pasta / "registro.txt").write_text("\n".join(linhas), encoding="utf-8")
         estado = ferramentas.estado()
         return ResultadoExecucao(
@@ -127,13 +134,17 @@ def executar_uma(indice: int, provedor: Provedor, spec: Path, gabarito: Path,
     (pasta / "estado.json").write_text(
         json.dumps(execucao.estado, indent=2, ensure_ascii=False, default=list),
         encoding="utf-8")
+    info(f"agente {'terminou' if execucao.terminou else 'NÃO terminou'} em "
+         f"{execucao.passos} passo(s); gerando a netlist do estado")
     try:
         netlist = pasta / "agente.net"
         gerar_netlist(execucao.estado, netlist, base)
+        info(f"netlist em {netlist}; comparando com {gabarito.name}")
         comparacao = comparar(gabarito, netlist, base)
         equivalente, motivo = comparacao.equivalente, comparacao.resumo()
     except (ErroGeracao, ErroNetlist) as erro:
         equivalente, motivo = False, str(erro)
+        info(f"não deu para medir: {type(erro).__name__}")
     if not execucao.terminou:
         motivo = f"{motivo} (o agente não terminou: {execucao.texto_final})"
     return ResultadoExecucao(
@@ -148,9 +159,10 @@ def executar_uma(indice: int, provedor: Provedor, spec: Path, gabarito: Path,
 def rodar_eval(n: int, criar_provedor: Callable[[], Provedor], modelo: str, esforco: str,
                spec: Path = SPEC, gabarito: Path = GABARITO,
                base: dict[str, Componente] | None = None, saida: Path = SAIDA,
-               avisar: Callable[[str], None] | None = print) -> Rodada:
+               avisar: Callable[[str], None] | None = None) -> Rodada:
     """Roda ``n`` execuções e devolve a ``Rodada``. ``criar_provedor`` dá um provedor novo
-    a cada execução, para nenhuma conversa vazar para a seguinte."""
+    a cada execução, para nenhuma conversa vazar para a seguinte. ``avisar`` recebe as
+    linhas do andamento (o ``main`` usa ``print`` com ``flush``); ``None`` silencia."""
     if n < 1:
         raise ValueError("n precisa ser pelo menos 1")
     base = carregar_todos() if base is None else base
@@ -159,8 +171,17 @@ def rodar_eval(n: int, criar_provedor: Callable[[], Provedor], modelo: str, esfo
     pasta = Path(saida) / agora.strftime("%Y-%m-%d_%H%M%S")
     rodada = Rodada(data=agora.strftime("%Y-%m-%d"), versao_do_prompt=VERSAO_DO_PROMPT,
                     modelo=modelo, esforco=esforco)
+    terminal = Terminal(avisar) if avisar else None
+    if terminal:
+        terminal.info(f"eval: {n} execução(ões) · {modelo} · esforço {esforco} · "
+                      f"prompt {VERSAO_DO_PROMPT} · arquivos em {pasta}")
     for i in range(1, n + 1):
-        resultado = executar_uma(i, criar_provedor(), spec, gabarito, base, pasta / str(i))
+        if terminal:
+            terminal.reiniciar()
+            avisar("")
+            terminal.info(f"=== execução {i} de {n} ===")
+        resultado = executar_uma(i, criar_provedor(), spec, gabarito, base, pasta / str(i),
+                                 terminal)
         (pasta / str(i) / "resultado.json").write_text(
             json.dumps(asdict(resultado), indent=2, ensure_ascii=False), encoding="utf-8")
         rodada.execucoes.append(resultado)
@@ -168,7 +189,9 @@ def rodar_eval(n: int, criar_provedor: Callable[[], Provedor], modelo: str, esfo
             avisar(_linha_da_execucao(resultado))
     (pasta / "rodada.md").write_text(_relatorio(rodada), encoding="utf-8")
     if avisar:
-        avisar(f"\n{rodada.acertos} de {n} equivalentes ao gabarito; resultados em {pasta}")
+        avisar(f"\n{rodada.acertos} de {n} equivalentes ao gabarito "
+               f"(meta: {'atingida' if rodada.meta_atingida else 'não atingida'}); "
+               f"custo total {dolares(rodada.custo_total)}; resultados em {pasta}")
     return rodada
 
 
@@ -178,15 +201,11 @@ CABECALHO = ("| Data | Prompt | Modelo | Esforço | Equivalentes | Meta | Peças
 MARCADOR = "<!-- rodadas: rodar.py --registrar acrescenta as linhas abaixo -->"
 
 
-def _dolares(valor: float | None) -> str:
-    return "?" if valor is None else f"US$ {valor:.4f}"
-
-
 def _linha_da_execucao(r: ResultadoExecucao) -> str:
     marca = "BATEU" if r.equivalente else "NÃO BATEU"
     return (f"[{r.indice}] {marca}: {r.chamadas} chamadas, {r.passos} passos, "
             f"{r.tentativas_inexistentes} peça(s) inexistente(s), {r.pendencias} pendência(s), "
-            f"{r.tokens_entrada} + {r.tokens_saida} tokens, {_dolares(r.custo_usd)}, "
+            f"{r.tokens_entrada} + {r.tokens_saida} tokens, {dolares(r.custo_usd)}, "
             f"{r.segundos:.0f} s\n    {r.motivo.splitlines()[0]}")
 
 
@@ -243,7 +262,7 @@ def main(argumentos: list[str] | None = None) -> int:
 
     rodada = rodar_eval(opcoes.n, lambda: ProvedorClaude(opcoes.modelo, esforco=opcoes.esforco),
                         opcoes.modelo, opcoes.esforco, opcoes.spec, opcoes.gabarito,
-                        saida=opcoes.saida)
+                        saida=opcoes.saida, avisar=lambda linha: print(linha, flush=True))
     print(CABECALHO + "\n" + rodada.linha_markdown(opcoes.observacao))
     if opcoes.registrar:
         registrar(rodada, EVALS_MD, opcoes.observacao)

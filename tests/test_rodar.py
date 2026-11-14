@@ -132,7 +132,19 @@ def test_custo_pela_tabela_de_precos():
     assert custo("claude-sonnet-5-5", 0, 10**6, 0, 0) == pytest.approx(10.0)
     assert custo("modelo-sem-preco", 1, 1, 1, 1) is None
     assert custo(None, 1, 1, 1, 1) is None
-    assert set(PRECOS) == {"claude-opus-5-5", "claude-sonnet-5-5"}
+    assert set(PRECOS) == {"claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"}
+
+
+def test_haiku_cobra_mais_acima_de_100_mil_tokens_de_prompt():
+    # Até 100 mil tokens de prompt (entrada + cache): 0,10 / 0,50 / 0,01 / 0,125 por milhão.
+    assert custo("claude-haiku-5-5", 10_000, 1_000, 80_000, 10_000) == pytest.approx(
+        (10_000 * 0.10 + 1_000 * 0.50 + 80_000 * 0.01 + 10_000 * 0.125) / 1e6)
+    assert custo("claude-haiku-5-5", 100_000, 0, 0, 0) == pytest.approx(0.01)
+    # Acima disso, a faixa cara vale para o pedido inteiro: 0,50 / 2,50 / 0,05 / 0,625.
+    assert custo("claude-haiku-5-5", 100_001, 1_000, 0, 0) == pytest.approx(
+        (100_001 * 0.50 + 1_000 * 2.50) / 1e6)
+    assert custo("claude-haiku-5-5", 1_000, 0, 99_001, 0) == pytest.approx(
+        (1_000 * 0.50 + 99_001 * 0.05) / 1e6)
 
 
 def test_traduzir_separa_o_cache_e_calcula_o_custo():
@@ -250,3 +262,25 @@ def test_pasta_do_eval_fica_fora_do_git():
     raiz = Path(rodar.__file__).resolve().parents[2]
     assert rodar.SAIDA.relative_to(raiz).parts[0] == "saida"
     assert "saida/" in (raiz / ".gitignore").read_text(encoding="utf-8").split()
+
+
+@precisa_do_skidl
+def test_eval_mostra_o_andamento_no_terminal(tmp_path):
+    linhas: list[str] = []
+    inventada = (("selecionar_componente", {"id": "display-oled-inventado", "ref": "D1"}),)
+    rodar_eval(1, lambda: ProvedorRoteiro(_chamadas(extra=inventada)), "claude-haiku-5-5",
+               "medium", base=BASE, saida=tmp_path, avisar=linhas.append)
+    texto = "\n".join(linhas)
+    for trecho in ["eval: 1 execução(ões) · claude-haiku-5-5 · esforço medium",
+                   "=== execução 1 de 1 ===", "passo 1 ·", "25 ferramenta(s)",
+                   "ERRO selecionar_componente(id='display-oled-inventado'",
+                   "ok   conectar(ref='U1', pino='5V', rede='+5V')",
+                   "gerando a netlist", "comparando com gabarito.net", "[1] BATEU",
+                   "1 de 1 equivalentes ao gabarito (meta: atingida)"]:
+        assert trecho in texto, trecho
+
+
+def test_eval_em_silencio_por_padrao(tmp_path, capsys):
+    rodar_eval(1, lambda: ProvedorRoteiro(_chamadas(), falhar=True), "m", "high", base=BASE,
+               saida=tmp_path)
+    assert capsys.readouterr().out == ""
