@@ -123,7 +123,7 @@ O laço do agente (`src/agente/laco.py`, vindo do `agente_minimo.py` do protóti
 prompt e os contratos das ferramentas (`src/agente/contratos.py`) ao modelo e executa cada
 pedido pelas ferramentas. O modelo fica atrás de um adaptador; o da API da Anthropic
 (Claude Opus 5.5) está em `src/agente/provedores/claude.py` (ADR-011). Para rodar uma vez
-sobre a placa de referência (precisa de `pip install anthropic==2.8.0` e da chave na
+sobre a placa de referência (a biblioteca `anthropic` já está na imagem; a chave vai na
 variável `ANTHROPIC_API_KEY`, nunca no código):
 
 ```bash
@@ -149,12 +149,28 @@ python -m src.evals.comparar placas/monitor-umidade/gabarito.net outra.net
 O comando sai com 0 se as netlists forem equivalentes e com 1 se não forem, mostrando o que
 faltou ou sobrou e com quem cada pino divergente ficou ligado.
 
+## Eval do gabarito (`make eval`)
+
+`src/evals/rodar.py` roda o agente N vezes sobre o `spec.yaml` e, para cada execução, gera a
+netlist, compara com o `gabarito.net` e registra se bateu, quantas tentativas de peça
+inexistente houve, quantas chamadas e quanto custou (ADR-013). A meta é 4 de 5 execuções
+equivalentes. Chama a API da Anthropic, então custa dinheiro:
+
+```bash
+export ANTHROPIC_API_KEY=...      # só no terminal; nunca em arquivo ou commit
+make eval N=5 OBS="primeira rodada"
+```
+
+`MODELO` e `ESFORCO` trocam o modelo e o esforço (padrão: `claude-opus-5-5` e `high`). A
+rodada entra na tabela de `docs/evals.md`, e os detalhes de cada execução ficam em
+`saida/evals/`.
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
 carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`,
-`tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py` e
-`tests/test_gerar_netlist.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+`tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py`,
+`tests/test_gerar_netlist.py` e `tests/test_rodar.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura

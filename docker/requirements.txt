@@ -1,8 +1,11 @@
-# Bibliotecas Python do projeto.
-# Depois do primeiro build que funcionar, fixe as versões (ex.: pydantic==2.x.y).
-skidl
-pydantic
-pyyaml
-pytest
+# Bibliotecas Python do projeto, com as versões fixadas (ADR-013).
+# Estas são as versões da imagem que passou nos testes em 2026-11-13 (pip freeze).
+# Para mudar uma versão, altere aqui e registre num ADR.
+skidl==3.0.0
+pydantic==2.14.3
+pyyaml==6.0.2
+pytest==9.2.0
 # netlist -> .kicad_pcb (Caminho A do Marco 1 / M1-2). Usa o pcbnew do KiCad.
-kinet2pcb
+kinet2pcb==1.1.4
+# API da Anthropic, usada só por src/agente/provedores/claude.py (ADR-011 e ADR-013).
+anthropic==2.8.0

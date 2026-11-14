@@ -25,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell configurar netlist posicionar placa testes pcb rotear drc
+.PHONY: imagem versao shell configurar netlist posicionar placa testes eval pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -88,6 +88,19 @@ placa:
 # Roda os testes automáticos (pytest) dentro do container.
 testes:
 	$(RUN) python -m pytest tests/
+
+# Eval do gabarito (Marco 4, Parte 6): roda o agente N vezes sobre o spec.yaml, compara
+# cada netlist com o gabarito.net e acrescenta a rodada a docs/evals.md. Chama a API da
+# Anthropic (custa dinheiro): a chave vem da variável ANTHROPIC_API_KEY do seu terminal,
+# repassada ao container só neste alvo, e nunca fica em arquivo.
+# Ex.: make eval N=5 MODELO=claude-sonnet-5-5 ESFORCO=medium OBS="primeira rodada"
+N ?= 5
+MODELO ?= claude-opus-5-5
+ESFORCO ?= high
+OBS ?=
+eval:
+	@test -n "$$ANTHROPIC_API_KEY" || { echo "Defina ANTHROPIC_API_KEY no terminal antes do make eval."; exit 1; }
+	docker run --rm --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.evals.rodar --n $(N) --modelo $(MODELO) --esforco $(ESFORCO) --observacao "$(OBS)" --registrar
 
 # Gera a placa a partir da netlist (Caminho A: kinet2pcb). Marco 1 / M1-2.
 pcb:
