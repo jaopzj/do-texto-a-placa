@@ -42,6 +42,17 @@ def _dados_do_sensor() -> dict:
 
 @pytest.fixture
 def sensor() -> dict:
+    """Cópia do YAML do sensor, ponto de partida dos casos de erro.
+
+    Se o próprio YAML de referência estiver inválido, os casos que partem dele não dizem
+    nada; eles falham com esta mensagem, e o erro real aparece em
+    test_todos_os_componentes_sao_validos.
+    """
+    try:
+        ler_arquivo(SENSOR)
+    except ErroBase as e:
+        pytest.fail(f"o YAML de referência do sensor está inválido, corrija-o primeiro:\n{e}",
+                    pytrace=False)
     return copy.deepcopy(_dados_do_sensor())
 
 

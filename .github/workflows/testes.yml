@@ -1,0 +1,45 @@
+# Validação automática da base de componentes (Marco 3, Parte 5).
+#
+# Roda a cada push e a cada pull request. Se um componente sair do formato, o job falha
+# e o pull request fica com X vermelho.
+#
+# O runner do GitHub não tem o KiCad nem o SKiDL, que só existem no container. Por isso
+# aqui roda só tests/test_componentes.py; os testes da placa e da netlist continuam no
+# "make testes", dentro do container. As versões abaixo são as mesmas do container
+# (docker/requirements.txt não fixa versões; ver docs/adr/0006 e o README).
+name: testes
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  base-de-componentes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Instalar dependências
+        run: pip install pydantic==2.14.3 pyyaml==6.0.2 pytest==9.2.0
+
+      - name: Carregar a base de componentes
+        run: |
+          python -c "
+          from src.componentes.carregar import carregar_todos
+          base = carregar_todos()
+          print(f'{len(base)} componente(s) válido(s):')
+          for comp in base.values():
+              print(f'  - {comp.id} ({comp.status}, {len(comp.pinos)} pinos)')
+          "
+
+      - name: Testes da base de componentes
+        run: python -m pytest tests/test_componentes.py -v -rs
