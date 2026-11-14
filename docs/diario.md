@@ -38,3 +38,8 @@
 - Fiz: o john conferiu a placa roteada no KiCad e no visualizador 3D, e o PR #13 entrou na `main` (Partes 1 a 8, com o `gabarito.net` e os ADRs 004 e 005). O M2 está concluído.
 - Aprendi: o repositório ainda não tem GitHub Actions; os testes só rodam com `make testes` dentro do container.
 - Travou: nada. Próximo marco: M3 (base de componentes v0).
+
+## 2026-11-14 — Marco 3, Partes 4 e 5 (carregador da base e GitHub Actions)
+- Fiz: versionei o modelo e o YAML do sensor de umidade (Partes 2 e 3); `src/componentes/carregar.py` lê e valida a base e, com qualquer problema, levanta `ErroBase` com arquivo e campo; o modelo ficou estrito (ADR-006); `src/componentes/kicad.py` confere símbolo e footprint nas bibliotecas do container; `tests/test_componentes.py` com 94 testes; `.github/workflows/testes.yml` roda a base a cada push e pull request. `make testes` no container: 127 passaram.
+- Aprendi: sem `extra="forbid"` o Pydantic ignora um campo com erro de digitação, e o PyYAML aceita chave repetida ficando com o último valor; os dois aceitariam dado errado em silêncio. A checagem do guia (apagar `status`) funciona: o erro diz `sensor-umidade-capacitivo.yaml: status: Field required`.
+- Travou: o YAML do sensor descreve o sensor capacitivo de 3 pinos (GND, VCC, AOUT), mas o `pecas.md`, o `circuito.py` e o `gabarito.net` usam o sensor resistivo FC-28 de 4 pinos (A0, D0, GND, VCC); falta decidir qual é a peça da placa antes da Parte 6. As fontes do sensor citam o datasheet sem página.

@@ -4,7 +4,7 @@ Plataforma de projeto de placas de circuito impresso conduzida por um agente de 
 o usuário descreve o hardware em português e o agente entrega a placa pronta para
 fabricação, usando o KiCad e verificações reais. A IA propõe, o código decide.
 
-Status: em estruturação (Marco 2).
+Status: em estruturação (Marco 3, base de componentes).
 
 ## Requisitos
 
@@ -58,9 +58,33 @@ O `placas/monitor-umidade/gabarito.net` é a netlist de referência para os eval
 Marco 4. Ele não é gerado pelo pipeline, e um teste confere que a netlist gerada tem a
 mesma estrutura.
 
+## Base de componentes
+
+Cada peça é um YAML em `componentes/`, no formato do modelo `src/componentes/modelo.py`.
+Para usar a base no código:
+
+```python
+from src.componentes.carregar import carregar_todos
+base = carregar_todos()   # {id: Componente}
+```
+
+Se qualquer arquivo tiver problema (campo faltando, campo desconhecido, tipo errado,
+valor inconsistente, YAML quebrado ou `id` repetido), `carregar_todos()` não devolve nada e
+levanta `ErroBase`, com o arquivo e o campo de cada erro. As regras estão no ADR-006. O
+`make testes` também confere se o símbolo e o footprint de cada peça existem nas
+bibliotecas do KiCad do container.
+
+## Integração contínua
+
+O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
+carrega a base e roda `tests/test_componentes.py`. Um YAML com erro deixa o pull request
+com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+(e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
+
 ## Estrutura
 
 - `docker/`: Dockerfile e dependências Python
+- `.github/workflows/`: integração contínua (GitHub Actions)
 - `docs/adr/`: decisões de arquitetura registradas
 - `docs/diario.md`: diário de bordo
 - `componentes/`: base de componentes
