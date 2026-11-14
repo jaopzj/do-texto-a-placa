@@ -26,8 +26,8 @@ Contrato de todas as ferramentas:
 dicionário de argumentos) e devolve o mesmo tipo de resultado, inclusive para ferramenta
 desconhecida ou argumento errado.
 
-Este módulo não chama nenhum modelo de IA. O laço do agente e o adaptador do provedor
-ficam para as próximas partes.
+Este módulo não chama nenhum modelo de IA. Os contratos que o modelo enxerga estão em
+``contratos.py``, o laço em ``laco.py`` e o adaptador do provedor em ``provedores/``.
 """
 import re
 import unicodedata
