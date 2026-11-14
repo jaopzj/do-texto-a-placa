@@ -59,7 +59,7 @@ def sensor() -> dict:
 def test_sensor_carregado_com_os_dados_do_yaml():
     comp = carregar_todos()["sensor-umidade-capacitivo"]
     assert comp.kicad_simbolo == "Connector_Generic:Conn_01x03"
-    assert comp.kicad_footprint == "Connector_PinSocket_2.54mm:PinSocket_1x03_P2.54mm_Vertical"
+    assert comp.kicad_footprint == "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
     assert (comp.alimentacao_min, comp.alimentacao_max) == (3.3, 5.5)
     assert [(p.numero, p.nome, p.tipo) for p in comp.pinos] == [
         (1, "GND", "terra"), (2, "VCC", "alimentacao"), (3, "AOUT", "analogico")]
@@ -356,9 +356,10 @@ def bibliotecas_falsas(tmp_path):
         encoding="utf-8")
     (simbolos / "Pasta.kicad_symdir").mkdir()
     (simbolos / "Pasta.kicad_symdir" / "Um.kicad_sym").write_text("()", encoding="utf-8")
-    pretty = footprints / "Connector_PinSocket_2.54mm.pretty"
-    pretty.mkdir(parents=True)
-    (pretty / "PinSocket_1x03_P2.54mm_Vertical.kicad_mod").write_text("()", encoding="utf-8")
+    for tipo in ("PinSocket", "PinHeader"):
+        pretty = footprints / f"Connector_{tipo}_2.54mm.pretty"
+        pretty.mkdir(parents=True)
+        (pretty / f"{tipo}_1x03_P2.54mm_Vertical.kicad_mod").write_text("()", encoding="utf-8")
     return simbolos, footprints
 
 
@@ -382,6 +383,7 @@ def test_simbolo_existe(bibliotecas_falsas, referencia, existe):
 @pytest.mark.parametrize("referencia,existe", [
     ("Connector_PinSocket_2.54mm:PinSocket_1x03_P2.54mm_Vertical", True),
     ("Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical", False),
+    ("Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical", True),
     ("Connector_PinHeader_2.54mm:PinSocket_1x03_P2.54mm_Vertical", False),
 ])
 def test_footprint_existe(bibliotecas_falsas, referencia, existe):

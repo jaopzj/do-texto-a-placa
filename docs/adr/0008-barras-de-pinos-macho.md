@@ -19,7 +19,8 @@ Na base de componentes, os footprints dos módulos são barras de pinos macho
 `Connector_Generic:Conn_01xNN`. Continua valendo do ADR-005 a ideia de um conector genérico
 por fileira, agora descrita na base pelo campo `conectores` (ADR-007).
 
-O ESP32 DevKitC passa a ter duas barras 1x19 macho (J2 e J3 da documentação da Espressif).
+O ESP32 DevKitC passa a ter duas barras 1x19 macho (J2 e J3 da documentação da Espressif),
+e o conversor de nível, duas barras 1x06 macho (lados HV e LV), também por escolha do john.
 
 ## Consequências
 
@@ -28,5 +29,5 @@ O ESP32 DevKitC passa a ter duas barras 1x19 macho (J2 e J3 da documentação da
 - Os módulos também têm pinos macho, então a ligação entre módulo e placa deixa de ser por
   encaixe direto. Ela passa a depender de cabos ou de barras fêmea montadas à parte. Quem
   monta a placa precisa saber disso.
-- O sensor de umidade ainda está com footprint fêmea na base (`PinSocket_1x03`). Ele fica
-  assim até o john decidir.
+- O sensor de umidade passou para `PinHeader_1x03` (o john confirmou), então todos os
+  módulos da placa de referência usam barra macho.

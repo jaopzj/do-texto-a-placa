@@ -2,8 +2,17 @@
 id: conversor-nivel-logico-4-canais
 descricao: Módulo conversor de nível lógico bidirecional de 4 canais, utilizado para adaptar sinais digitais entre dispositivos que operam com diferentes tensões lógicas, como 5 V, 3.3 V, 2.8 V e 1.8 V. Possui alimentação independente para os lados de alta tensão (HV) e baixa tensão (LV).
 
-kicad_simbolo: Connector_Generic:Conn_02x06_Odd_Even
-kicad_footprint: Connector_PinHeader_2.54mm:PinHeader_2x06_P2.54mm_Vertical
+# Dois lados de 6 pinos (ADR-007): HV com os pinos 1 a 6 e LV com os pinos 7 a 12,
+# cada um numa barra de pinos macho 1x06 (ADR-008).
+conectores:
+  - nome: HV
+    kicad_simbolo: Connector_Generic:Conn_01x06
+    kicad_footprint: Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical
+    pinos: [1, 2, 3, 4, 5, 6]
+  - nome: LV
+    kicad_simbolo: Connector_Generic:Conn_01x06
+    kicad_footprint: Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical
+    pinos: [7, 8, 9, 10, 11, 12]
 
 alimentacao_min: 1.8
 alimentacao_max: 5.0
@@ -81,9 +90,8 @@ pinos:
 
   - numero: 12
     nome: LV4
-    tipo: alimentacao
-    tensao_max: 3.3
-    funcoes: ["Alimentação do lado de baixa tensão"]
+    tipo: entrada_saida
+    funcoes: ["Canal 4 de conversão bidirecional", "Lado de baixa tensão"]
     fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
 
 regras:
