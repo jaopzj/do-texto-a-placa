@@ -31,8 +31,10 @@ J1: { x: 60.00, y: 60.00, rotacao: 90 }   # fileira J2 da Espressif (pino 1 = 3V
 J2: { x: 60.00, y: 85.40, rotacao: 90 }   # fileira J3 da Espressif (pino 1 = GND), 25,4 mm abaixo de J1
 
 # LCD I2C e sensor: uma fileira cada, lida da esquerda para a direita
-J3: { x: 110.00, y: 60.00, rotacao: 90 }  # LCD (pino 1 = GND)
-J4: { x: 110.00, y: 85.40, rotacao: 90 }  # sensor (pino 1 = GND)
+# x = 113 (era 110 até o Marco 3): com o ESP32 de 19 pinos por fileira, a referência de
+# J3 e J4 encostava na serigrafia de J1 e J2 (silk_overlap no DRC).
+J3: { x: 113.00, y: 60.00, rotacao: 90 }  # LCD (pino 1 = GND)
+J4: { x: 113.00, y: 85.40, rotacao: 90 }  # sensor (pino 1 = GND)
 
 # Conversor de nível: duas fileiras na vertical, lidas de cima para baixo
 J5: { x: 130.00, y: 60.00, rotacao: 0 }   # lado LV (pino 1 = LV1) - PROVISÓRIO

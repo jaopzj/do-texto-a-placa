@@ -44,7 +44,7 @@
 - Aprendi: sem `extra="forbid"` o Pydantic ignora um campo com erro de digitação, e o PyYAML aceita chave repetida ficando com o último valor; os dois aceitariam dado errado em silêncio. A checagem do guia (apagar `status`) funciona: o erro diz `sensor-umidade-capacitivo.yaml: status: Field required`.
 - Travou: o YAML do sensor descreve o sensor capacitivo de 3 pinos (GND, VCC, AOUT), mas o `pecas.md`, o `circuito.py` e o `gabarito.net` usam o sensor resistivo FC-28 de 4 pinos (A0, D0, GND, VCC); falta decidir qual é a peça da placa antes da Parte 6. As fontes do sensor citam o datasheet sem página.
 
-## 2026-11-14 — Marco 3, Parte 6 (conectores por peça)
-- Fiz: o modelo da base ganhou `conectores` (ADR-007), para o ESP32 de 38 pinos e o conversor entrarem como uma peça só, com um conector fêmea por fileira na placa; `kicad.py` confere cada conector; testes novos de conectores.
-- Aprendi: os YAMLs do ESP32, do LCD e do conversor existiam só na pasta local, sem commit; o ESP32 é o DevKitC V4 de 38 pinos, e não o de 2x15 do `pecas.md`.
-- Travou: o `circuito.py` só passa a ler a base depois de corrigidos os dados dessas peças (símbolo e footprint do ESP32, pino 12 do conversor, macho ou fêmea) e de refeitos o `pecas.md`, o `gabarito.net` e o `posicoes.yaml` para o ESP32 de 38 pinos e o HW-101.
+## 2026-11-14 — Marco 3, Parte 6 (base completa e circuito.py lendo a base)
+- Fiz: o modelo ganhou `conectores` (ADR-007); versionei o ESP32 DevKitC V4 (38 pinos), o LCD e o conversor, que estavam só na pasta local; corrigi o ESP32 (duas fileiras 1x19, GPIO8/GPIO9 pela página 5 da Espressif), o LV4 do conversor e passei todos os módulos para barra macho (ADR-008); o `circuito.py` busca símbolo, footprint e pinos na base; `pecas.md`, `gabarito.net` e testes refeitos para o ESP32 de 38 pinos e o sensor HW-101.
+- Aprendi: os 19 pinos por fileira do ESP32 fazem a serigrafia de J1/J2 encostar na referência de J3/J4, e o DRC acusa `silk_overlap`; J3 e J4 foram 3 mm para a direita.
+- Travou: a distância entre as fileiras do ESP32 (25,4 mm) e entre os lados do conversor continuam estimadas; ESP32 e LCD ainda estão em `rascunho`, e alguns rótulos de função do ESP32 não estão na página 5 da Espressif.

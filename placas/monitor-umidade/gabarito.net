@@ -2,7 +2,7 @@
   (version "D")
   (design
     (source "circuito.py")
-    (date "11/13/2026 05:49 PM")
+    (date "11/14/2026 05:05 AM")
     (tool "SKiDL (3.0.0)")
     (sheet
       (number 1)
@@ -44,23 +44,23 @@
   (components
     (comp
       (ref "J1")
-      (value "ESP32 fileira superior")
-      (description "Generic connector, single row, 01x15, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "Connector_PinSocket_2.54mm:PinSocket_1x15_P2.54mm_Vertical")
+      (value "esp32-devkitc-v4 J2")
+      (description "Generic connector, single row, 01x19, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical")
       (fields
         (field
-          (name "Description") "Generic connector, single row, 01x15, script generated (kicad-library-utils/schlib/autogen/connector/)")
+          (name "Description") "Generic connector, single row, 01x19, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "Connector_PinSocket_2.54mm:PinSocket_1x15_P2.54mm_Vertical")
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical")
         (field
           (name "Datasheet"))
         (field
           (name "SKiDL Tag") "J1")
         (field
-          (name "SKiDL Line") "circuito.py:128"))
+          (name "SKiDL Line") "circuito.py:160"))
       (libsource
         (lib "Connector_Generic")
-        (part "Conn_01x15"))
+        (part "Conn_01x19"))
       (sheetpath
         (names "/")
         (tstamps "/"))
@@ -68,23 +68,23 @@
       (tstamps "d7608689-a7d2-514c-aa16-0f8bde5cf213"))
     (comp
       (ref "J2")
-      (value "ESP32 fileira inferior")
-      (description "Generic connector, single row, 01x15, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "Connector_PinSocket_2.54mm:PinSocket_1x15_P2.54mm_Vertical")
+      (value "esp32-devkitc-v4 J3")
+      (description "Generic connector, single row, 01x19, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical")
       (fields
         (field
-          (name "Description") "Generic connector, single row, 01x15, script generated (kicad-library-utils/schlib/autogen/connector/)")
+          (name "Description") "Generic connector, single row, 01x19, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "Connector_PinSocket_2.54mm:PinSocket_1x15_P2.54mm_Vertical")
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical")
         (field
           (name "Datasheet"))
         (field
           (name "SKiDL Tag") "J2")
         (field
-          (name "SKiDL Line") "circuito.py:128"))
+          (name "SKiDL Line") "circuito.py:160"))
       (libsource
         (lib "Connector_Generic")
-        (part "Conn_01x15"))
+        (part "Conn_01x19"))
       (sheetpath
         (names "/")
         (tstamps "/"))
@@ -92,20 +92,20 @@
       (tstamps "5e0b731b-c654-5cf6-8847-00f2f042255c"))
     (comp
       (ref "J3")
-      (value "LCD I2C")
+      (value "display-lcd-1602-i2c")
       (description "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical")
       (fields
         (field
           (name "Description") "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical")
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical")
         (field
           (name "Datasheet"))
         (field
           (name "SKiDL Tag") "J3")
         (field
-          (name "SKiDL Line") "circuito.py:128"))
+          (name "SKiDL Line") "circuito.py:160"))
       (libsource
         (lib "Connector_Generic")
         (part "Conn_01x04"))
@@ -116,23 +116,23 @@
       (tstamps "feeefe1a-2e42-5bb8-adfa-cd7486f50a6d"))
     (comp
       (ref "J4")
-      (value "Sensor de umidade")
-      (description "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical")
+      (value "sensor-umidade-capacitivo")
+      (description "Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
       (fields
         (field
-          (name "Description") "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+          (name "Description") "Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical")
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
         (field
           (name "Datasheet"))
         (field
           (name "SKiDL Tag") "J4")
         (field
-          (name "SKiDL Line") "circuito.py:128"))
+          (name "SKiDL Line") "circuito.py:160"))
       (libsource
         (lib "Connector_Generic")
-        (part "Conn_01x04"))
+        (part "Conn_01x03"))
       (sheetpath
         (names "/")
         (tstamps "/"))
@@ -140,20 +140,20 @@
       (tstamps "c449faf0-e5d1-5f09-ba34-b969c94251c8"))
     (comp
       (ref "J5")
-      (value "Conversor de nivel LV")
+      (value "conversor-nivel-logico-4-canais LV")
       (description "Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "Connector_PinSocket_2.54mm:PinSocket_1x06_P2.54mm_Vertical")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
       (fields
         (field
           (name "Description") "Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "Connector_PinSocket_2.54mm:PinSocket_1x06_P2.54mm_Vertical")
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
         (field
           (name "Datasheet"))
         (field
           (name "SKiDL Tag") "J5")
         (field
-          (name "SKiDL Line") "circuito.py:128"))
+          (name "SKiDL Line") "circuito.py:160"))
       (libsource
         (lib "Connector_Generic")
         (part "Conn_01x06"))
@@ -164,20 +164,20 @@
       (tstamps "f5689b7a-fac2-5a8c-aa11-b3b9d837b29f"))
     (comp
       (ref "J6")
-      (value "Conversor de nivel HV")
+      (value "conversor-nivel-logico-4-canais HV")
       (description "Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)")
-      (footprint "Connector_PinSocket_2.54mm:PinSocket_1x06_P2.54mm_Vertical")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
       (fields
         (field
           (name "Description") "Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)")
         (field
-          (name "Footprint") "Connector_PinSocket_2.54mm:PinSocket_1x06_P2.54mm_Vertical")
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
         (field
           (name "Datasheet"))
         (field
           (name "SKiDL Tag") "J6")
         (field
-          (name "SKiDL Line") "circuito.py:128"))
+          (name "SKiDL Line") "circuito.py:160"))
       (libsource
         (lib "Connector_Generic")
         (part "Conn_01x06"))
@@ -192,16 +192,16 @@
       (name "+3V3")
       (class "Default")
       (node
-        (ref "J2")
+        (ref "J1")
         (pin "1")
         (pintype "PASSIVE"))
       (node
         (ref "J4")
-        (pin "4")
+        (pin "2")
         (pintype "PASSIVE"))
       (node
         (ref "J5")
-        (pin "1")
+        (pin "3")
         (pintype "PASSIVE")))
     (net
       (code 2)
@@ -209,7 +209,7 @@
       (class "Default")
       (node
         (ref "J1")
-        (pin "1")
+        (pin "19")
         (pintype "PASSIVE"))
       (node
         (ref "J3")
@@ -217,7 +217,7 @@
         (pintype "PASSIVE"))
       (node
         (ref "J6")
-        (pin "1")
+        (pin "3")
         (pintype "PASSIVE")))
     (net
       (code 3)
@@ -225,11 +225,15 @@
       (class "Default")
       (node
         (ref "J1")
-        (pin "2")
+        (pin "14")
         (pintype "PASSIVE"))
       (node
         (ref "J2")
-        (pin "2")
+        (pin "1")
+        (pintype "PASSIVE"))
+      (node
+        (ref "J2")
+        (pin "7")
         (pintype "PASSIVE"))
       (node
         (ref "J3")
@@ -237,15 +241,15 @@
         (pintype "PASSIVE"))
       (node
         (ref "J4")
-        (pin "3")
+        (pin "1")
         (pintype "PASSIVE"))
       (node
         (ref "J5")
-        (pin "6")
+        (pin "4")
         (pintype "PASSIVE"))
       (node
         (ref "J6")
-        (pin "6")
+        (pin "4")
         (pintype "PASSIVE")))
     (net
       (code 4)
@@ -253,11 +257,11 @@
       (class "Default")
       (node
         (ref "J2")
-        (pin "14")
+        (pin "3")
         (pintype "PASSIVE"))
       (node
         (ref "J5")
-        (pin "3")
+        (pin "2")
         (pintype "PASSIVE")))
     (net
       (code 5)
@@ -269,7 +273,7 @@
         (pintype "PASSIVE"))
       (node
         (ref "J6")
-        (pin "3")
+        (pin "2")
         (pintype "PASSIVE")))
     (net
       (code 6)
@@ -277,11 +281,11 @@
       (class "Default")
       (node
         (ref "J2")
-        (pin "11")
+        (pin "6")
         (pintype "PASSIVE"))
       (node
         (ref "J5")
-        (pin "2")
+        (pin "1")
         (pintype "PASSIVE")))
     (net
       (code 7)
@@ -293,7 +297,7 @@
         (pintype "PASSIVE"))
       (node
         (ref "J6")
-        (pin "2")
+        (pin "1")
         (pintype "PASSIVE")))
     (net
       (code 8)
@@ -301,9 +305,9 @@
       (class "Default")
       (node
         (ref "J1")
-        (pin "12")
+        (pin "5")
         (pintype "PASSIVE"))
       (node
         (ref "J4")
-        (pin "1")
+        (pin "3")
         (pintype "PASSIVE")))))
