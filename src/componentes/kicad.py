@@ -41,11 +41,16 @@ def footprint_existe(referencia: str, pasta_footprints: Path) -> bool:
 
 def referencias_ausentes(comp: Componente, pasta_simbolos: Path,
                          pasta_footprints: Path) -> list[str]:
-    """Lista legível das referências do componente que não existem nas bibliotecas."""
+    """Lista legível das referências do componente que não existem nas bibliotecas.
+
+    Confere o símbolo e o footprint de cada conector da peça (ADR-007)."""
     ausentes = []
-    if not simbolo_existe(comp.kicad_simbolo, pasta_simbolos):
-        ausentes.append(f"{comp.id}: símbolo {comp.kicad_simbolo!r} não existe em {pasta_simbolos}")
-    if not footprint_existe(comp.kicad_footprint, pasta_footprints):
-        ausentes.append(
-            f"{comp.id}: footprint {comp.kicad_footprint!r} não existe em {pasta_footprints}")
+    varios = len(comp.conectores_fisicos()) > 1
+    for con in comp.conectores_fisicos():
+        onde = f"{comp.id} (conector {con.nome})" if varios else comp.id
+        if not simbolo_existe(con.kicad_simbolo, pasta_simbolos):
+            ausentes.append(f"{onde}: símbolo {con.kicad_simbolo!r} não existe em {pasta_simbolos}")
+        if not footprint_existe(con.kicad_footprint, pasta_footprints):
+            ausentes.append(
+                f"{onde}: footprint {con.kicad_footprint!r} não existe em {pasta_footprints}")
     return ausentes

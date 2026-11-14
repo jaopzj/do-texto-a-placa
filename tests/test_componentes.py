@@ -420,3 +420,80 @@ def test_variaveis_do_kicad_no_container_apontam_para_pastas_reais():
     # existir; senão o teste acima seria pulado sem ninguém perceber.
     if "KICAD10_SYMBOL_DIR" in os.environ:
         assert BIBLIOTECAS_REAIS is not None
+
+
+# --- Conectores por peça (ADR-007) -------------------------------------------------------
+
+def _com_conectores(sensor, conectores):
+    """O sensor com seus 3 pinos repartidos em conectores (só para testar o formato)."""
+    del sensor["kicad_simbolo"], sensor["kicad_footprint"]
+    sensor["conectores"] = conectores
+    return sensor
+
+
+def _conector(nome, pinos, n=None):
+    n = n or len(pinos)
+    return {"nome": nome, "kicad_simbolo": f"Connector_Generic:Conn_01x{n:02d}",
+            "kicad_footprint": f"Connector_PinSocket_2.54mm:PinSocket_1x{n:02d}_P2.54mm_Vertical",
+            "pinos": pinos}
+
+
+def test_sem_conectores_a_peca_tem_um_conector_com_todos_os_pinos():
+    comp = carregar_todos()["sensor-umidade-capacitivo"]
+    assert comp.conectores == []
+    [con] = comp.conectores_fisicos()
+    assert (con.nome, con.kicad_simbolo, con.kicad_footprint, con.pinos) == (
+        "sensor-umidade-capacitivo", comp.kicad_simbolo, comp.kicad_footprint, [1, 2, 3])
+
+
+def test_conectores_validos_sao_aceitos(tmp_path, sensor):
+    _gravar(tmp_path, "peca.yaml",
+            _com_conectores(sensor, [_conector("a", [3, 1]), _conector("b", [2])]))
+    comp = carregar_todos(tmp_path)["sensor-umidade-capacitivo"]
+    assert [(c.nome, c.pinos) for c in comp.conectores_fisicos()] == [("a", [3, 1]), ("b", [2])]
+    assert comp.kicad_simbolo is None and comp.kicad_footprint is None
+
+
+@pytest.mark.parametrize("conectores,mensagem", [
+    ([_conector("a", [1, 2])], "pinos fora de qualquer conector: [3]"),
+    ([_conector("a", [1, 2]), _conector("b", [2, 3])],
+     "pino em mais de um conector (ou repetido): [2]"),
+    ([_conector("a", [1, 1, 2, 3])], "pino em mais de um conector (ou repetido): [1]"),
+    ([_conector("a", [1, 2, 3, 4])], "conectores citam pinos que a peça não tem: [4]"),
+    ([_conector("a", [1, 2]), _conector("a", [3])], "nome de conector repetido: ['a']"),
+])
+def test_conectores_inconsistentes(tmp_path, sensor, conectores, mensagem):
+    assert mensagem in _um_erro(tmp_path, _com_conectores(sensor, conectores))
+
+
+@pytest.mark.parametrize("mudar,local", [
+    (lambda c: c.update(pinos=[]), "conectores.0.pinos"),
+    (lambda c: c.update(pinos=[0, 1, 2, 3]), "conectores.0.pinos.0"),
+    (lambda c: c.update(nome=""), "conectores.0.nome"),
+    (lambda c: c.update(kicad_simbolo="Conn_01x03"), "conectores.0.kicad_simbolo"),
+    (lambda c: c.pop("kicad_footprint"), "conectores.0.kicad_footprint"),
+    (lambda c: c.update(fileira=1), "conectores.0.fileira"),
+])
+def test_campo_do_conector_invalido(tmp_path, sensor, mudar, local):
+    conector = _conector("a", [1, 2, 3])
+    mudar(conector)
+    assert f"{local}: " in _um_erro(tmp_path, _com_conectores(sensor, [conector]))
+
+
+def test_conectores_e_simbolo_da_peca_juntos_sao_recusados(tmp_path, sensor):
+    sensor["conectores"] = [_conector("a", [1, 2, 3])]
+    erro = _um_erro(tmp_path, sensor)
+    assert "com conectores, deixe de fora ['kicad_simbolo', 'kicad_footprint']" in erro
+
+
+def test_referencias_de_cada_conector_sao_conferidas(bibliotecas_falsas, sensor):
+    # Na biblioteca falsa só existem Conn_01x03 e PinSocket_1x03: o conector "a" existe e
+    # o "b" (de 4 pinos) não.
+    _com_conectores(sensor, [_conector("a", [1, 2], n=3), _conector("b", [3], n=4)])
+    ausentes = referencias_ausentes(Componente.model_validate(sensor), *bibliotecas_falsas)
+    assert len(ausentes) == 2, ausentes
+    assert ausentes[0].startswith(
+        "sensor-umidade-capacitivo (conector b): símbolo 'Connector_Generic:Conn_01x04'")
+    assert ausentes[1].startswith(
+        "sensor-umidade-capacitivo (conector b): footprint "
+        "'Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical'")

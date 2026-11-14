@@ -70,7 +70,9 @@ base = carregar_todos()   # {id: Componente}
 
 Se qualquer arquivo tiver problema (campo faltando, campo desconhecido, tipo errado,
 valor inconsistente, YAML quebrado ou `id` repetido), `carregar_todos()` não devolve nada e
-levanta `ErroBase`, com o arquivo e o campo de cada erro. As regras estão no ADR-006. O
+levanta `ErroBase`, com o arquivo e o campo de cada erro. As regras estão no ADR-006. Uma peça com várias
+fileiras de pinos (o ESP32, o conversor de nível) descreve cada fileira em `conectores`, com
+seu símbolo e footprint (ADR-007). O
 `make testes` também confere se o símbolo e o footprint de cada peça existem nas
 bibliotecas do KiCad do container.
 

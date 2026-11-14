@@ -43,3 +43,8 @@
 - Fiz: versionei o modelo e o YAML do sensor de umidade (Partes 2 e 3); `src/componentes/carregar.py` lê e valida a base e, com qualquer problema, levanta `ErroBase` com arquivo e campo; o modelo ficou estrito (ADR-006); `src/componentes/kicad.py` confere símbolo e footprint nas bibliotecas do container; `tests/test_componentes.py` com 94 testes; `.github/workflows/testes.yml` roda a base a cada push e pull request. `make testes` no container: 127 passaram.
 - Aprendi: sem `extra="forbid"` o Pydantic ignora um campo com erro de digitação, e o PyYAML aceita chave repetida ficando com o último valor; os dois aceitariam dado errado em silêncio. A checagem do guia (apagar `status`) funciona: o erro diz `sensor-umidade-capacitivo.yaml: status: Field required`.
 - Travou: o YAML do sensor descreve o sensor capacitivo de 3 pinos (GND, VCC, AOUT), mas o `pecas.md`, o `circuito.py` e o `gabarito.net` usam o sensor resistivo FC-28 de 4 pinos (A0, D0, GND, VCC); falta decidir qual é a peça da placa antes da Parte 6. As fontes do sensor citam o datasheet sem página.
+
+## 2026-11-14 — Marco 3, Parte 6 (conectores por peça)
+- Fiz: o modelo da base ganhou `conectores` (ADR-007), para o ESP32 de 38 pinos e o conversor entrarem como uma peça só, com um conector fêmea por fileira na placa; `kicad.py` confere cada conector; testes novos de conectores.
+- Aprendi: os YAMLs do ESP32, do LCD e do conversor existiam só na pasta local, sem commit; o ESP32 é o DevKitC V4 de 38 pinos, e não o de 2x15 do `pecas.md`.
+- Travou: o `circuito.py` só passa a ler a base depois de corrigidos os dados dessas peças (símbolo e footprint do ESP32, pino 12 do conversor, macho ou fêmea) e de refeitos o `pecas.md`, o `gabarito.net` e o `posicoes.yaml` para o ESP32 de 38 pinos e o HW-101.
