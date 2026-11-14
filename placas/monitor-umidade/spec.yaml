@@ -1,0 +1,90 @@
+# Especificação da placa de referência: monitor de umidade do solo (Marco 4, Parte 2).
+#
+# Escrita à mão, no formato de src/especificacao.py (ADR-009). É a entrada do agente no
+# Marco 4: a partir dela, ele escolhe as ligações, e a netlist é comparada com o
+# gabarito.net.
+#
+# decidido_por segue a especificação de exemplo da proposta (Do-texto-a-placa-proposta.pdf,
+# página 9), que marca em cada linha quem decidiu. O que a proposta não cobre, ou o que o
+# john decidiu depois, cita o documento onde a decisão está registrada.
+#
+# Nenhum dado elétrico é escrito aqui: tensões e pinos de cada módulo ficam na base de
+# componentes (componentes/), citada pelo id. Unidades: volts e milímetros.
+
+projeto:
+  id: monitor-umidade
+  nome: Monitor de umidade do solo
+  descricao: >-
+    Lê a umidade do solo com um sensor capacitivo ligado a um ESP32 DevKit e mostra o valor
+    num LCD 16x2 com adaptador I2C. A placa é alimentada pelo USB do DevKit.
+
+modulos:
+  - papel: microcontrolador
+    componente: esp32-devkitc-v4
+    decidido_por: usuario
+    motivo: >-
+      ESP32 como placa de desenvolvimento encaixada em barra de pinos. O modelo é o
+      DevKitC V4 de 38 pinos, conferido pelo john no Marco 3, Parte 6.
+    fonte: {documento: "placas/monitor-umidade/pecas.md"}
+
+  - papel: sensor de umidade
+    componente: sensor-umidade-capacitivo
+    decidido_por: usuario
+    motivo: Sensor capacitivo HW-101, de saída analógica (decisão do john, Marco 3, Parte 6).
+    fonte: {documento: "placas/monitor-umidade/pecas.md"}
+    requisitos:
+      - descricao: A saída AOUT do sensor vai num pino do ESP32 com função ADC1.
+        decidido_por: agente
+        motivo: >-
+          O ADC2 do ESP32 não funciona com o Wi-Fi ligado, então o sensor deve ir num pino
+          do ADC1.
+        fonte: {documento: "Do-texto-a-placa-proposta.pdf", pagina: 9}
+        regras:
+          - {componente: esp32-devkitc-v4, regra: adc2-wifi}
+
+  - papel: display
+    componente: display-lcd-1602-i2c
+    decidido_por: agente
+    motivo: >-
+      O usuário quer uma tela para mostrar o valor do sensor; o agente propõe o LCD 16x2 com
+      adaptador I2C e pede confirmação.
+    fonte: {documento: "Do-texto-a-placa-proposta.pdf", pagina: 9}
+
+  - papel: conversor de nível lógico
+    componente: conversor-nivel-logico-4-canais
+    decidido_por: agente
+    motivo: >-
+      O LCD com adaptador I2C funciona em 5 V e mantém as linhas SDA e SCL em 5 V, e o
+      ESP32 trabalha em 3,3 V e não tolera 5 V nos pinos. O conversor fica entre os dois.
+    fonte: {documento: "Do-texto-a-placa-proposta.pdf", pagina: 9}
+    regras:
+      - {componente: display-lcd-1602-i2c, regra: i2c-voltage-compatibility}
+      - {componente: esp32-devkitc-v4, regra: gpio-not-5v-tolerant}
+
+alimentacao:
+  origem: usb_do_devkit
+  tensao: 5.0
+  decidido_por: usuario
+  fonte: {documento: "Do-texto-a-placa-proposta.pdf", pagina: 9}
+
+restricoes:
+  camadas:
+    valor: 2
+    decidido_por: agente
+    motivo: Placa de duas camadas de cobre, como a placa-modelo (F.Cu e B.Cu).
+    fonte: {documento: "Do-texto-a-placa-proposta.pdf", pagina: 9}
+
+  # Contorno desenhado pelo john na placa-modelo (Marco 2, Parte 5):
+  # de (52,5; 43,5) a (152,5; 143,5) mm na camada Edge.Cuts.
+  contorno:
+    largura: 100.0
+    altura: 100.0
+    decidido_por: usuario
+    fonte: {documento: "placas/monitor-umidade/modelo/modelo.kicad_pcb"}
+
+  # A proposta (página 9) previa barra fêmea, com os módulos encaixados. O john trocou
+  # para barra macho no Marco 3, Parte 6 (ADR-008).
+  montagem:
+    valor: barra_pinos_macho
+    decidido_por: usuario
+    fonte: {documento: "docs/adr/0008-barras-de-pinos-macho.md"}
