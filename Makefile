@@ -100,7 +100,7 @@ ESFORCO ?= high
 OBS ?=
 eval:
 	@test -n "$$ANTHROPIC_API_KEY" || { echo "Defina ANTHROPIC_API_KEY no terminal antes do make eval."; exit 1; }
-	docker run --rm --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.evals.rodar --n $(N) --modelo $(MODELO) --esforco $(ESFORCO) --observacao "$(OBS)" --registrar
+	docker run --rm --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -e PYTHONUNBUFFERED=1 -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.evals.rodar --n $(N) --modelo $(MODELO) --esforco $(ESFORCO) --observacao "$(OBS)" --registrar
 
 # Gera a placa a partir da netlist (Caminho A: kinet2pcb). Marco 1 / M1-2.
 pcb:

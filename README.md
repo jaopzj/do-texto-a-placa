@@ -127,7 +127,7 @@ sobre a placa de referência (a biblioteca `anthropic` já está na imagem; a ch
 variável `ANTHROPIC_API_KEY`, nunca no código):
 
 ```bash
-python -m src.agente placas/monitor-umidade/spec.yaml
+python -m src.agente placas/monitor-umidade/spec.yaml --modelo claude-haiku-5-5 --esforco medium
 ```
 
 ## Netlist do agente e eval do gabarito
@@ -161,16 +161,25 @@ export ANTHROPIC_API_KEY=...      # só no terminal; nunca em arquivo ou commit
 make eval N=5 OBS="primeira rodada"
 ```
 
-`MODELO` e `ESFORCO` trocam o modelo e o esforço (padrão: `claude-opus-5-5` e `high`). A
-rodada entra na tabela de `docs/evals.md`, e os detalhes de cada execução ficam em
-`saida/evals/`.
+`MODELO` e `ESFORCO` trocam o modelo e o esforço (padrão: `claude-opus-5-5` e `high`).
+Os modelos com preço conhecido são `claude-opus-5-5`, `claude-sonnet-5-5` e
+`claude-haiku-5-5` (ADR-014); o esforço vai de `low` a `max`. Por exemplo:
+
+```bash
+make eval N=1 MODELO=claude-haiku-5-5 ESFORCO=medium OBS="haiku medium"
+```
+
+Enquanto roda, o terminal mostra cada passo do agente (tempo, tokens, custo até agora e o
+que ele pensou) e cada ferramenta (`ok` ou `ERRO` com o motivo). A rodada entra na tabela
+de `docs/evals.md`, e o registro completo de cada execução fica em `saida/evals/`.
 
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
 carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`,
 `tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py`,
-`tests/test_gerar_netlist.py` e `tests/test_rodar.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+`tests/test_gerar_netlist.py`, `tests/test_rodar.py` e `tests/test_terminal.py` (a parte que
+não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura
