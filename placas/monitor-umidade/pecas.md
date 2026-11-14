@@ -2,42 +2,46 @@
 
 ## ESP-32 Dev-Kit
 
--   **Modelo:** ESP32 DevKit V1 (identificação provável)
--   **Módulo:** ESP32-WROOM-32 (identificação provável)
--   **Conector USB:** USB Type-C
--   **Quantidade de pinos:** 30 pinos
--   **Distribuição:** 15 pinos por fileira
+> Atualizado em 2026-11-14 (Marco 3, Parte 6): a placa usada é o ESP32-DevKitC V4, de 38
+> pinos, e não o DevKit V1 de 30 pinos anotado antes. A pinagem abaixo é a da base de
+> componentes (`componentes/esp32-devkitc-v4.yaml`), tirada da tabela "1.1.5 Header
+> Block" do guia da Espressif (esp-dev-kits-en-master-esp32.pdf, página 5).
+
+-   **Modelo:** ESP32-DevKitC V4
+-   **Módulo:** ESP32-WROOM-32E
+-   **Quantidade de pinos:** 38 pinos
+-   **Distribuição:** 19 pinos por fileira (cabeçalhos J2 e J3 da Espressif)
 
 ### Dimensões
 
 -   **Distância entre as fileiras:** aproximadamente 25,4 mm (centro a
     centro).
--   **Observação:** medida estimada visualmente.
+-   **Observação:** medida estimada visualmente. O guia da Espressif não traz a medida;
+    ela está no documento de dimensões do DevKitC V4, que não está no repositório.
 
 ### Pinagem
 
-#### Fileira superior (esquerda para a direita)
+#### Fileira J2 (pino 1 na ponta oposta ao USB)
 
 ``` text
-VIN | GND | D13 | D12 | D14 | D27 | D26 | D25 | D33 | D32 | D35 | D34 | VN | VP | EN
+3V3 | EN | VP | VN | IO34 | IO35 | IO32 | IO33 | IO25 | IO26 | IO27 | IO14 | IO12 | GND | IO13 | D2 | D3 | CMD | 5V
 ```
 
-#### Fileira inferior (esquerda para a direita)
+#### Fileira J3 (pino 1 na ponta oposta ao USB)
 
 ``` text
-3V3 | GND | D15 | D2 | D4 | RX2 | TX2 | D5 | D18 | D19 | D21 | RX0 | TX0 | D22 | D23
+GND | IO23 | IO22 | TX | RX | IO21 | GND | IO19 | IO18 | IO5 | IO17 | IO16 | IO4 | IO0 | IO2 | IO15 | D1 | D0 | CLK
 ```
 
 ### Resumo
 
   Característica               Valor
   ---------------------------- -------------------------
-  Fileira superior             15 pinos
-  Fileira inferior             15 pinos
-  Total                        30 pinos
+  Fileira J2                   19 pinos
+  Fileira J3                   19 pinos
+  Total                        38 pinos
   Espaçamento entre fileiras   Aproximadamente 25,4 mm
-  Conector USB                 USB Type-C
-  Módulo                       ESP32-WROOM-32
+  Módulo                       ESP32-WROOM-32E
 
 ------------------------------------------------------------------------
 
@@ -69,36 +73,35 @@ GND | VCC | SDA | SCL
 
 ## Sensor de umidade do solo
 
--   **Tipo:** Sensor resistivo de umidade do solo com módulo comparador.
--   **Modelo/família:** FC-28 com módulo LM393 (identificação provável).
--   **Conjunto:** sonda resistiva de duas trilhas e placa eletrônica
-    comparadora.
--   **Quantidade de pinos na interface do módulo:** 4 pinos.
--   **Conexão entre a sonda e o módulo:** 2 fios.
+> Atualizado em 2026-11-14 (Marco 3, Parte 6): a placa usa o sensor capacitivo HW-101
+> (decisão do john), e não o resistivo FC-28 anotado antes. Pinagem da base de componentes
+> (`componentes/sensor-umidade-capacitivo.yaml`, datasheet HW-101, página 2).
+
+-   **Tipo:** Sensor capacitivo de umidade do solo, saída analógica.
+-   **Modelo:** HW-101 (HW-moisture sensor V1.2).
+-   **Quantidade de pinos na interface do módulo:** 3 pinos.
+-   **Alimentação:** 3,3 a 5,5 V (datasheet, página 2).
 
 ### Pinagem
 
-#### Conector do módulo (ordem usual, com o ajuste azul voltado para cima; confirmar as inscrições da placa física)
+#### Conector do módulo
 
 ``` text
-A0 | D0 | GND | VCC
+GND | VCC | AOUT
 ```
 
--   **A0:** saída analógica.
--   **D0:** saída digital do comparador.
 -   **GND:** terra.
 -   **VCC:** alimentação.
+-   **AOUT:** saída analógica.
 
 ### Resumo
 
   Característica          Valor
   ----------------------- -------------------------------------
-  Tipo                    Sensor resistivo de umidade do solo
-  Pinos do módulo         4
-  Conexão da sonda        2 fios
-  Saídas                  Analógica (A0) e digital (D0)
+  Tipo                    Sensor capacitivo de umidade do solo
+  Pinos do módulo         3
+  Saída                   Analógica (AOUT)
   Alimentação             VCC e GND
-  Controlador do módulo   LM393 (provável)
 
 ------------------------------------------------------------------------
 
@@ -112,16 +115,19 @@ A0 | D0 | GND | VCC
 
 ### Pinagem
 
-#### Lado de alta tensão (HV) --- ordem física de cima para baixo, conforme a orientação da inscrição na placa
+> Atualizado em 2026-11-14 (Marco 3, Parte 6): pinagem da base de componentes
+> (`componentes/conversor-nivel-logico-4-canais.yaml`, manual 010-0061, página 1).
+
+#### Lado de alta tensão (HV), pinos 1 a 6
 
 ``` text
-HV | B1 | B2 | B3 | B4 | GND
+HV1 | HV2 | HV | GND | HV3 | HV4
 ```
 
-#### Lado de baixa tensão (LV) --- ordem física de cima para baixo, conforme a orientação da inscrição na placa
+#### Lado de baixa tensão (LV), pinos 7 a 12
 
 ``` text
-LV | A1 | A2 | A3 | A4 | GND
+LV1 | LV2 | LV | GND | LV3 | LV4
 ```
 
 ### Resumo
@@ -132,8 +138,8 @@ LV | A1 | A2 | A3 | A4 | GND
   Canais de sinal        4
   Pinos por lado         6
   Total                  12 pinos
-  Lado de alta tensão    HV, B1, B2, B3, B4, GND
-  Lado de baixa tensão   LV, A1, A2, A3, A4, GND
+  Lado de alta tensão    HV1, HV2, HV, GND, HV3, HV4
+  Lado de baixa tensão   LV1, LV2, LV, GND, LV3, LV4
   Níveis usuais          3,3 V e 5 V
 
 ------------------------------------------------------------------------
@@ -149,7 +155,7 @@ explicitamente marcado como **não usado**.
   -----------------------------------------------------------------------
   Rede (net)              Ligações                Por quê
   ----------------------- ----------------------- -----------------------
-  **+5V**                 ESP32 (VIN), LCD (VCC), O LCD e o lado de alta
+  **+5V**                 ESP32 (5V), LCD (VCC),  O LCD e o lado de alta
                           conversor de nível (HV) tensão do conversor
                                                   recebem 5 V. A
                                                   alimentação de 5 V vem
@@ -161,41 +167,42 @@ explicitamente marcado como **não usado**.
                           nível (LV)              conversor operam em 3,3
                                                   V.
 
-  **GND**                 ESP32 (GND), LCD (GND), Todos os componentes
+  **GND**                 ESP32 (os três GND),    Todos os componentes
+                          LCD (GND),
                           sensor (GND), conversor precisam compartilhar a
                           (GND do lado HV e GND   mesma referência
                           do lado LV)             elétrica.
 
-  **SENSOR**              Sensor (A0), ESP32 (D34 A saída analógica do
-                          / GPIO34)               sensor é lida pelo ADC1
+  **SENSOR**              Sensor (AOUT), ESP32    A saída analógica do
+                          (IO34 / GPIO34)         sensor é lida pelo ADC1
                                                   do ESP32. O GPIO34
                                                   pertence ao ADC1, que
                                                   pode ser usado com
                                                   Wi-Fi ativo.
 
-  **SDA_3V3**             ESP32 (D21 / GPIO21),   GPIO21 é o pino SDA
-                          conversor (A1 / LV1)    padrão do ESP32. O
+  **SDA_3V3**             ESP32 (IO21 / GPIO21),  GPIO21 é o pino SDA
+                          conversor (LV1)         padrão do ESP32. O
                                                   sinal entra no lado de
                                                   3,3 V do conversor.
 
-  **SCL_3V3**             ESP32 (D22 / GPIO22),   GPIO22 é o pino SCL
-                          conversor (A2 / LV2)    padrão do ESP32. O
+  **SCL_3V3**             ESP32 (IO22 / GPIO22),  GPIO22 é o pino SCL
+                          conversor (LV2)         padrão do ESP32. O
                                                   sinal entra no lado de
                                                   3,3 V do conversor.
 
-  **SDA_5V**              Conversor (B1 / HV1),   O sinal SDA convertido
+  **SDA_5V**              Conversor (HV1),        O sinal SDA convertido
                           LCD (SDA)               para o lado de 5 V
                                                   chega ao LCD.
 
-  **SCL_5V**              Conversor (B2 / HV2),   O sinal SCL convertido
+  **SCL_5V**              Conversor (HV2),        O sinal SCL convertido
                           LCD (SCL)               para o lado de 5 V
                                                   chega ao LCD.
   -----------------------------------------------------------------------
 
-**Nota sobre a nomenclatura do conversor:** nesta documentação, A1/A2
-representam os canais do lado LV e B1/B2 os canais correspondentes do
-lado HV. Alguns módulos imprimem esses sinais como LV1/LV2 e HV1/HV2.
-Confirme a serigrafia do módulo físico antes de montar o circuito.
+**Nota sobre a nomenclatura do conversor:** desde 2026-11-14 os nomes são os
+da base de componentes (LV1 a LV4 e HV1 a HV4). Antes, esta documentação usava
+A1 a A4 e B1 a B4. Confirme a serigrafia do módulo físico antes de montar o
+circuito.
 
 ## 2. Pinos não utilizados
 
@@ -205,19 +212,21 @@ devem permanecer sem conexão.
   -----------------------------------------------------------------------
   Componente                          Pinos não utilizados
   ----------------------------------- -----------------------------------
-  ESP32 --- fileira superior          D13, D12, D14, D27, D26, D25, D33,
-                                      D32, D35, VN, VP, EN
+  ESP32 --- fileira J2                EN, VP, VN, IO35, IO32, IO33, IO25,
+                                      IO26, IO27, IO14, IO12, IO13, D2,
+                                      D3, CMD
 
-  ESP32 --- fileira inferior          D15, D2, D4, RX2, TX2, D5, D18,
-                                      D19, RX0, TX0, D23
+  ESP32 --- fileira J3                IO23, TX, RX, IO19, IO18, IO5,
+                                      IO17, IO16, IO4, IO0, IO2, IO15,
+                                      D1, D0, CLK
 
   LCD I²C                             Nenhum
 
-  Sensor de umidade                   D0
+  Sensor de umidade                   Nenhum
 
-  Conversor --- lado LV               A3, A4
+  Conversor --- lado LV               LV3, LV4
 
-  Conversor --- lado HV               B3, B4
+  Conversor --- lado HV               HV3, HV4
   -----------------------------------------------------------------------
 
 ## 3. Conferência de todos os pinos
@@ -226,35 +235,35 @@ devem permanecer sem conexão.
   Componente       Pinos conectados   Pinos não usados              Total
                                                             contabilizado
   -------------- ------------------ ------------------ ------------------
-  ESP32 DevKit   7 posições de pino                 23                 30
-                    (VIN, 3V3, dois                    
-                     GND, D34, D21,                    
-                               D22)                    
+  ESP32 DevKit   8 posições de pino                 30                 38
+                     (5V, 3V3, três                    
+                    GND, IO34, IO21,                   
+                              IO22)                    
 
   LCD I²C                         4                  0                  4
 
-  Sensor de        3 (A0, GND, VCC)                  1                  4
+  Sensor de      3 (AOUT, GND, VCC)                  0                  3
   umidade                                              
 
   Conversor de      8 (HV, LV, dois                  4                 12
-  nível lógico     GND, A1, A2, B1,                    
-                                B2)                    
+  nível lógico        GND, LV1, LV2,                   
+                          HV1, HV2)                    
   -----------------------------------------------------------------------
 
-**Observação:** os dois pinos GND do ESP32 são posições físicas
-distintas, ambas ligadas à rede GND. Da mesma forma, os dois pinos GND
+**Observação:** os três pinos GND do ESP32 (um na fileira J2 e dois na
+J3) são posições físicas distintas, todas ligadas à rede GND. Da mesma forma, os dois pinos GND
 do conversor são posições distintas e ambos devem ser conectados à
 referência comum.
 
 ## 4. Verificações antes de transformar a tabela em netlist
 
--   [ ] Confirmar que o pino VIN do ESP32 fornece 5 V quando alimentado
+-   [ ] Confirmar que o pino 5V do ESP32 fornece 5 V quando alimentado
     pelo USB.
 -   [ ] Confirmar a ordem física e a serigrafia dos pinos do LCD I²C.
 -   [ ] Confirmar a ordem física e a serigrafia dos pinos do módulo do
     sensor.
 -   [ ] Confirmar no conversor quais terminais correspondem aos canais
-    A1/B1 e A2/B2.
+    LV1/HV1 e LV2/HV2.
 -   [ ] Confirmar que HV está ligado a 5 V e LV a 3,3 V.
 -   [ ] Confirmar que todos os GND estão interligados.
 -   [ ] Confirmar que cada pino está conectado a uma rede ou marcado

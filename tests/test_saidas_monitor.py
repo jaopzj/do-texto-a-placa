@@ -119,9 +119,9 @@ def test_bom_agrupa_os_conectores_por_tipo(saidas):
     with open(saidas["fabrica"] / "bom.csv", encoding="utf-8") as f:
         linhas = list(csv.DictReader(f))
     assert [(l["Referencias"], l["Quantidade"]) for l in linhas] == [
-        ("J1 J2", "2"), ("J3 J4", "2"), ("J5 J6", "2")
+        ("J1 J2", "2"), ("J3", "1"), ("J4", "1"), ("J5 J6", "2")
     ]
-    assert linhas[0]["Tipo de conector"].endswith("PinSocket_1x15_P2.54mm_Vertical")
+    assert linhas[0]["Tipo de conector"].endswith("PinHeader_1x19_P2.54mm_Vertical")
 
 
 def test_verificador_acusa_violacao_no_drc(saidas, tmp_path):

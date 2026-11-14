@@ -2,7 +2,7 @@ id: sensor-umidade-capacitivo
 descricao: Módulo sensor de umidade do solo capacitivo, saída analógica
 
 kicad_simbolo: Connector_Generic:Conn_01x03
-kicad_footprint: Connector_PinSocket_2.54mm:PinSocket_1x03_P2.54mm_Vertical
+kicad_footprint: Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
 
 alimentacao_min: 3.3      # confira no datasheet do seu módulo
 alimentacao_max: 5.5
@@ -12,4 +12,4 @@ pinos:
   - { numero: 2, nome: VCC,  tipo: alimentacao, fonte: { documento: 1662716326-hw-101-hw-moisture-sensor-v1-0.pdf, pagina: 2 } }
   - { numero: 3, nome: AOUT, tipo: analogico,   fonte: { documento: 1662716326-hw-101-hw-moisture-sensor-v1-0.pdf, pagina: 2 } }
 
-status: rascunho
+status: revisado
