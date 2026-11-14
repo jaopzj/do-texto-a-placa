@@ -12,20 +12,9 @@ from pathlib import Path
 from ..componentes.carregar import carregar_todos
 from ..especificacao import ler_especificacao
 from .ferramentas import Ferramentas
-from .laco import rodar_agente
+from .laco import montar_pedido, rodar_agente
 
 SPEC = Path(__file__).resolve().parents[2] / "placas" / "monitor-umidade" / "spec.yaml"
-
-PEDIDO = """Especificação da placa (YAML):
-
-{spec}
-
-Selecione os componentes da base, faça todas as ligações de cada pino usado e registre as
-decisões e as pendências necessárias."""
-
-
-def montar_pedido(arquivo: Path) -> str:
-    return PEDIDO.format(spec=Path(arquivo).read_text(encoding="utf-8").strip())
 
 
 def main(argumentos: list[str]) -> int:
@@ -40,8 +29,13 @@ def main(argumentos: list[str]) -> int:
         print(f"\n=== {titulo} ===")
         print(json.dumps(execucao.estado[chave], indent=2, ensure_ascii=False, default=list))
     print(f"\npassos: {execucao.passos}, chamadas: {len(execucao.chamadas)}, "
-          f"tokens: {execucao.tokens_entrada} + {execucao.tokens_saida}")
+          f"tokens: {execucao.tokens_entrada} + {execucao.tokens_saida}, "
+          f"custo: {_dolares(execucao.custo_usd)}")
     return 0 if execucao.terminou else 1
+
+
+def _dolares(valor: float | None) -> str:
+    return "desconhecido" if valor is None else f"US$ {valor:.4f}"
 
 
 if __name__ == "__main__":

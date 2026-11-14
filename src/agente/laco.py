@@ -6,18 +6,19 @@ Veio do ``agente_minimo.py`` do protótipo (seção 3, "O LAÇO DO AGENTE"). O q
 - o laço não conhece nenhum provedor de IA. Ele conversa com um objeto ``Provedor``
   (princípio 5 do CLAUDE.md: toda dependência externa fica atrás de um adaptador). O
   adaptador da Anthropic está em ``provedores/claude.py`` (ADR-011);
-- cada execução devolve um ``Execucao`` com o texto final, o estado do projeto, as chamadas
-  e os tokens, que o eval da Parte 6 vai medir.
+- cada execução devolve um ``Execucao`` com o texto final, o estado do projeto, as chamadas,
+  os tokens e o custo, que o eval da Parte 6 (``src/evals/rodar.py``) mede.
 
 O laço não executa código gerado pelo modelo: só chama as seis ferramentas, pelo nome.
 """
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable, Protocol
 
 from .contratos import CONTRATOS
 from .ferramentas import Ferramentas
 
-# Mude a versão sempre que mudar SISTEMA ou o texto de um contrato (docs/evals.md).
+# Mude a versão sempre que mudar SISTEMA, PEDIDO ou o texto de um contrato (docs/evals.md).
 VERSAO_DO_PROMPT = "1"
 
 SISTEMA = """Você é um engenheiro eletrônico projetando uma PCB.
@@ -33,6 +34,18 @@ Regras:
 - Se uma ferramenta recusar um pedido, leia o erro e o próximo passo antes de tentar de novo.
 Responda em português."""
 
+PEDIDO = """Especificação da placa (YAML):
+
+{spec}
+
+Selecione os componentes da base, faça todas as ligações de cada pino usado e registre as
+decisões e as pendências necessárias."""
+
+
+def montar_pedido(arquivo: Path) -> str:
+    """O primeiro pedido ao agente: o texto da especificação dentro de ``PEDIDO``."""
+    return PEDIDO.format(spec=Path(arquivo).read_text(encoding="utf-8").strip())
+
 
 @dataclass(frozen=True)
 class Chamada:
@@ -47,8 +60,11 @@ class Resposta:
     """Uma resposta do modelo, já traduzida pelo adaptador."""
     texto: str = ""
     chamadas: tuple[Chamada, ...] = ()
-    tokens_entrada: int = 0
+    tokens_entrada: int = 0            # toda a entrada, incluindo a lida e a gravada no cache
     tokens_saida: int = 0
+    tokens_cache_leitura: int = 0      # parte de tokens_entrada lida do cache
+    tokens_cache_escrita: int = 0      # parte de tokens_entrada gravada no cache
+    custo_usd: float | None = None     # None quando o adaptador não sabe o preço
 
 
 class Provedor(Protocol):
@@ -70,6 +86,9 @@ class Execucao:
     tentativas_inexistentes: list[str] = field(default_factory=list)
     tokens_entrada: int = 0
     tokens_saida: int = 0
+    tokens_cache_leitura: int = 0
+    tokens_cache_escrita: int = 0
+    custo_usd: float | None = 0.0      # soma das respostas; None se alguma não tinha preço
 
 
 def rodar_agente(pedido: str, provedor: Provedor, ferramentas: Ferramentas | None = None,
@@ -88,6 +107,11 @@ def rodar_agente(pedido: str, provedor: Provedor, ferramentas: Ferramentas | Non
         execucao.passos = passo
         execucao.tokens_entrada += resposta.tokens_entrada
         execucao.tokens_saida += resposta.tokens_saida
+        execucao.tokens_cache_leitura += resposta.tokens_cache_leitura
+        execucao.tokens_cache_escrita += resposta.tokens_cache_escrita
+        if execucao.custo_usd is not None:
+            execucao.custo_usd = (None if resposta.custo_usd is None
+                                  else execucao.custo_usd + resposta.custo_usd)
         if resposta.texto:
             log(f"[passo {passo}] PENSA: {resposta.texto}")
         if not resposta.chamadas:               # nenhum pedido de ferramenta: terminou

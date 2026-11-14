@@ -16,6 +16,10 @@ Escolhas:
 - se o modelo recusar o pedido por segurança, a API tenta de novo num modelo reserva
   (``fallbacks: "default"``). Se a recusa continuar, o laço termina com o motivo no texto.
 
+O custo de cada resposta é calculado com ``PRECOS``, pelo modelo que de fato respondeu
+(``resposta.model``, que pode ser o reserva). Um modelo fora da tabela dá custo ``None``,
+nunca um preço chutado.
+
 A biblioteca é importada só quando o adaptador é criado, então o resto do projeto (e os
 testes) funciona sem ela. A chave vem da variável de ambiente ``ANTHROPIC_API_KEY`` (ou de
 um login feito com ``ant auth login``), lida pela própria biblioteca. Nunca escreva a chave
@@ -29,6 +33,14 @@ MODELO = "claude-opus-5-5"
 ESFORCO = "high"
 MAX_TOKENS = 16000
 BETA_FALLBACK = "server-side-fallback-2026-07-01"
+
+# Preços em US$ por milhão de tokens: entrada, saída, leitura do cache e gravação no cache
+# (TTL de 5 minutos, 1,25 vez a entrada). Fonte: tabela de preços dos modelos da Anthropic,
+# consultada em 2026-11-14. Atualize junto com a data se o preço mudar.
+PRECOS: dict[str, tuple[float, float, float, float]] = {
+    "claude-opus-5-5": (4.00, 20.00, 0.20, 5.00),
+    "claude-sonnet-5-5": (2.00, 10.00, 0.10, 2.50),
+}
 
 
 class ProvedorClaude:
@@ -91,8 +103,23 @@ def traduzir(resposta) -> Resposta:
         texto = (texto + "\n" if texto else "") + "[resposta cortada no limite de tokens]"
         chamadas = ()               # um pedido cortado pode estar incompleto
     uso = resposta.usage
+    sem_cache = uso.input_tokens or 0
+    leitura = getattr(uso, "cache_read_input_tokens", 0) or 0
+    escrita = getattr(uso, "cache_creation_input_tokens", 0) or 0
+    saida = uso.output_tokens or 0
     return Resposta(
         texto=texto, chamadas=chamadas,
-        tokens_entrada=(uso.input_tokens or 0) + (getattr(uso, "cache_read_input_tokens", 0) or 0)
-        + (getattr(uso, "cache_creation_input_tokens", 0) or 0),
-        tokens_saida=uso.output_tokens or 0)
+        tokens_entrada=sem_cache + leitura + escrita, tokens_saida=saida,
+        tokens_cache_leitura=leitura, tokens_cache_escrita=escrita,
+        custo_usd=custo(getattr(resposta, "model", None), sem_cache, saida, leitura, escrita))
+
+
+def custo(modelo: str | None, entrada: int, saida: int, leitura: int, escrita: int
+          ) -> float | None:
+    """Custo em US$ de uma resposta, ou None se o modelo não está em ``PRECOS``."""
+    precos = PRECOS.get(modelo or "")
+    if precos is None:
+        return None
+    por_milhao = (entrada * precos[0] + saida * precos[1] + leitura * precos[2]
+                  + escrita * precos[3])
+    return por_milhao / 1_000_000

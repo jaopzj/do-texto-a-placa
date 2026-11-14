@@ -7,10 +7,10 @@ cliente falso, e esses testes são pulados se a biblioteca anthropic não estive
 import pytest
 
 from src.agente import ferramentas as mod_ferramentas
-from src.agente.__main__ import SPEC, montar_pedido
+from src.agente.__main__ import SPEC
 from src.agente.contratos import CONTRATOS
 from src.agente.ferramentas import FERRAMENTAS, Ferramentas
-from src.agente.laco import SISTEMA, Chamada, Resposta, rodar_agente
+from src.agente.laco import SISTEMA, Chamada, Resposta, montar_pedido, rodar_agente
 from src.componentes.carregar import carregar_todos
 
 ENTRADAS = {
