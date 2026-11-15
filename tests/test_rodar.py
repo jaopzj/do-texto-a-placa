@@ -95,13 +95,22 @@ def test_registrar_acrescenta_a_linha_na_tabela(tmp_path):
     arquivo = tmp_path / "evals.md"
     arquivo.write_text(rodar.EVALS_MD.read_text(encoding="utf-8") + "\n## Notas\n\ntexto\n",
                        encoding="utf-8")
+    def linhas_da_tabela() -> list[str]:
+        depois = arquivo.read_text(encoding="utf-8").split(MARCADOR)[1].strip().split("\n")
+        return depois[:next((i for i, ln in enumerate(depois) if not ln.startswith("|")),
+                            len(depois))]
+    # As rodadas já registradas no docs/evals.md de verdade ficam antes das novas.
+    antigas = [ln for ln in linhas_da_tabela()[2:] if not ln.startswith("| (nenhuma")]
     registrar(_rodada(_execucao()), arquivo, "teste")
     registrar(_rodada(_execucao(), _execucao(2)), arquivo)
     texto = arquivo.read_text(encoding="utf-8")
-    tabela = texto.split(MARCADOR)[1].strip().split("\n")
+    tabela = linhas_da_tabela()
     assert "\n".join(tabela[:2]) == CABECALHO
-    assert tabela[2].startswith("| 2026-11-14 | 1 |") and tabela[2].endswith("| teste |")
-    assert "| 2 de 2 |" in tabela[3]
+    assert tabela[2:2 + len(antigas)] == antigas
+    novas = tabela[2 + len(antigas):]
+    assert len(novas) == 2
+    assert novas[0].startswith("| 2026-11-14 | 1 |") and novas[0].endswith("| teste |")
+    assert "| 2 de 2 |" in novas[1]
     assert "(nenhuma rodada" not in texto
     assert texto.rstrip().endswith("## Notas\n\ntexto")
 
