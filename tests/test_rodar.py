@@ -284,3 +284,34 @@ def test_eval_em_silencio_por_padrao(tmp_path, capsys):
     rodar_eval(1, lambda: ProvedorRoteiro(_chamadas(), falhar=True), "m", "high", base=BASE,
                saida=tmp_path)
     assert capsys.readouterr().out == ""
+
+
+# --- Equivalências de pinos (ADR-015) ----------------------------------------------------------
+
+def test_equivalencias_com_problema_param_antes_de_chamar_a_api(tmp_path):
+    ruim = tmp_path / "equivalencias.yaml"
+    ruim.write_text('equivalencias:\n  - pino: "esp32-devkitc-v4: IO34"\n    funcao: ADC1_\n'
+                    "    requisito: Um requisito que o spec não tem.\n", encoding="utf-8")
+    def nunca():
+        raise AssertionError("não devia criar o provedor")
+    with pytest.raises(ValueError, match="não está no spec"):
+        rodar_eval(1, nunca, "m", "high", base=BASE, saida=tmp_path / "saida", avisar=None,
+                   equivalencias=ruim)
+
+
+@precisa_do_skidl
+def test_sensor_em_outro_pino_do_adc1_bate_com_o_gabarito(tmp_path):
+    ligacoes = dict(LIGACOES_A_MAO, SENSOR=[("S1", "AOUT"), ("U1", "IO32")])
+    rodada = _rodar(tmp_path, ProvedorRoteiro(_chamadas(ligacoes)))
+    [r] = rodada.execucoes
+    assert r.equivalente, r.motivo
+    assert r.motivo == ("equivalente ao gabarito (troca aceita: esp32-devkitc-v4: IO32 "
+                        "no lugar de esp32-devkitc-v4: IO34)")
+
+
+@precisa_do_skidl
+def test_sem_equivalencias_o_sensor_em_outro_pino_nao_bate(tmp_path):
+    ligacoes = dict(LIGACOES_A_MAO, SENSOR=[("S1", "AOUT"), ("U1", "IO32")])
+    rodada = rodar_eval(1, lambda: ProvedorRoteiro(_chamadas(ligacoes)), "roteiro", "-",
+                        base=BASE, saida=tmp_path, avisar=None, equivalencias=None)
+    assert not rodada.execucoes[0].equivalente

@@ -173,11 +173,17 @@ Enquanto roda, o terminal mostra cada passo do agente (tempo, tokens, custo até
 que ele pensou) e cada ferramenta (`ok` ou `ERRO` com o motivo). A rodada entra na tabela
 de `docs/evals.md`, e o registro completo de cada execução fica em `saida/evals/`.
 
+O gabarito fixa uma resposta, mas o `spec.yaml` às vezes deixa a escolha aberta: ele só pede
+que o sensor vá num pino do ADC1, e o gabarito usa o IO34. O
+`placas/monitor-umidade/equivalencias.yaml` diz quais pinos do gabarito o eval aceita trocar,
+e o código calcula pela base quais pinos cumprem o mesmo requisito (ADR-015). Uma troca
+aceita aparece no resultado ("troca aceita: ... no lugar de ...").
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
 carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`,
-`tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py`,
+`tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py`, `tests/test_equivalencias.py`,
 `tests/test_gerar_netlist.py`, `tests/test_rodar.py` e `tests/test_terminal.py` (a parte que
 não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.

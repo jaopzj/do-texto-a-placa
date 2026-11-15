@@ -72,3 +72,8 @@
 - Travou: a rodada de verdade (N=5, com a API) ainda não foi feita; ela depende da chave do john e custa dinheiro, então a tabela de `docs/evals.md` está vazia.
 - Fiz depois: a primeira execução do john (Opus 5.5, `high`) bateu com o gabarito e custou US$ 0,34, 60% em raciocínio. A pedido dele, entrou o Claude Haiku 5.5 (preço em duas faixas, sem modelo reserva) e o andamento no terminal: cada passo com tempo, tokens e custo, e cada ferramenta com `ok` ou `ERRO` (ADR-014).
 - Fiz depois: o john pediu o Haiku 5.5 como modelo padrão, no `make eval` e no `python -m src.agente` (ADR-014). Falta a primeira rodada dele no eval.
+
+## 2026-11-15 — Marco 4, 1ª rodada do Haiku e pinos equivalentes no eval
+- Fiz: o john rodou `make eval N=5` com o Haiku 5.5: 0 de 5, US$ 0,06 no total (cerca de US$ 0,011 por execução, 45 chamadas em média), nenhuma peça inexistente. As cinco erraram só o pino do sensor (IO32 no lugar do IO34). A pedido do john, o eval passou a aceitar outro pino que cumpra o mesmo requisito do spec, com `placas/monitor-umidade/equivalencias.yaml` e `src/evals/equivalencias.py` (ADR-015).
+- Aprendi: o `spec.yaml` só pede "um pino do ADC1", e o IO34 só aparece no `pecas.md`; um gabarito exato reprova respostas que a especificação aceita. O Haiku erra o formato do `registrar_decisao` na primeira tentativa e se corrige pelo próximo passo.
+- Travou: falta uma rodada nova com as equivalências; os casos permanentes da peça ausente e do pedido impossível ainda não existem no eval.
