@@ -39,7 +39,7 @@ from pydantic import Field, StringConstraints, ValidationError
 
 from .agente.contratos import CONTRATOS as CONTRATOS_DO_AGENTE
 from .agente.ferramentas import Ferramentas, normalizar
-from .agente.laco import Evento, Execucao, Provedor, conversar
+from .agente.laco import ErroProvedor, Evento, Execucao, Provedor, conversar
 from .aprovacao import Veredito, pedir_aprovacao
 from .componentes.carregar import carregar_todos
 from .componentes.modelo import Componente, Texto, _Estrito
@@ -553,6 +553,11 @@ def main(argumentos: list[str], provedor: Provedor | None = None,
     except (EOFError, KeyboardInterrupt):
         escrever("\nBriefing cancelado. Nenhuma especificação foi gravada.")
         return 130
+    except ErroProvedor as e:
+        escrever(f"\nA API do modelo falhou: {e}\nNenhuma especificação foi gravada. As "
+                 f"perguntas e respostas até aqui estão em {opcoes.saida / REGISTRO}; rode "
+                 "o briefing de novo.")
+        return 1
 
     ex = resultado.execucao
     resumo = (f"perguntas: {len(briefing.perguntas)}, entregas inválidas: "

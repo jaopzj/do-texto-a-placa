@@ -547,3 +547,22 @@ def test_contratos_do_briefing_viram_ferramentas_da_api():
     assert [f["name"] for f in ferramentas] == list(FERRAMENTAS)
     assert all(f["input_schema"] == c["parameters"] for f, c in zip(ferramentas, CONTRATOS))
     assert pedidos[0]["system"] == SISTEMA
+
+
+def test_main_falha_da_api_sem_traceback(tmp_path):
+    from src.agente.laco import ErroProvedor
+
+    class ProvedorQueFalha(ProvedorFalso):
+        def continuar(self, resultados):
+            raise ErroProvedor("APITimeoutError: Request timed out.")
+
+    provedor = ProvedorQueFalha([_pede(("perguntar_usuario", {"pergunta": "Que display?",
+                                                              "sobre": ["modulo:display"]}))])
+    saida = []
+    codigo = main(["placa", "--saida", str(tmp_path)], provedor=provedor,
+                  ler=Teclado(["LCD"]), escrever=saida.append)
+    texto = "\n".join(saida)
+    assert codigo == 1 and "A API do modelo falhou: APITimeoutError" in texto
+    assert [a.name for a in tmp_path.iterdir()] == [mod.REGISTRO]
+    assert "OBSERVA: {'ok': True, 'resposta': 'LCD'" in (tmp_path / mod.REGISTRO).read_text(
+        encoding="utf-8")

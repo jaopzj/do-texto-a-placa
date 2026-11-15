@@ -72,6 +72,13 @@ class Resposta:
     custo_usd: float | None = None     # None quando o adaptador não sabe o preço
 
 
+class ErroProvedor(Exception):
+    """O provedor de IA falhou (rede, tempo esgotado, sobrecarga, chave inválida...).
+
+    O adaptador traduz o erro da biblioteca dele nesta exceção, para quem chama não precisar
+    importar a biblioteca (princípio 5 do CLAUDE.md)."""
+
+
 class Provedor(Protocol):
     """O que o laço precisa de um provedor de IA. O adaptador guarda o histórico."""
 

@@ -425,3 +425,41 @@ def test_claude_responder_fecha_pedido_cortado_e_manda_o_texto():
     # Sem pedido pendente, vai só o texto.
     provedor.responder("mais uma")
     assert [b["type"] for b in pedidos[2]["messages"][-1]["content"]] == ["text"]
+
+
+def test_claude_erro_da_api_vira_erro_provedor_e_tem_tempo_limite(monkeypatch):
+    anthropic = pytest.importorskip("anthropic")
+    from src.agente.laco import ErroProvedor
+    from src.agente.provedores import claude
+
+    class Mensagens:
+        def create(self, **parametros):
+            raise anthropic.APIConnectionError(message="Request timed out.", request=None)
+
+    class Cliente:
+        class beta:
+            messages = Mensagens()
+
+    with pytest.raises(ErroProvedor, match="APIConnectionError"):
+        claude.ProvedorClaude(cliente=Cliente()).iniciar("s", CONTRATOS, "pedido")
+    # O cliente de verdade sai com tempo limite e novas tentativas, não com o padrão de 10 min.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "chave-falsa-do-teste")
+    real = claude.ProvedorClaude().cliente
+    assert real.timeout == claude.TEMPO_LIMITE == 180.0
+    assert real.max_retries == claude.TENTATIVAS
+
+
+def test_claude_erro_que_nao_e_da_api_passa_direto():
+    pytest.importorskip("anthropic")
+    from src.agente.provedores.claude import ProvedorClaude
+
+    class Mensagens:
+        def create(self, **parametros):
+            raise ValueError("bug nosso")
+
+    class Cliente:
+        class beta:
+            messages = Mensagens()
+
+    with pytest.raises(ValueError):
+        ProvedorClaude(cliente=Cliente()).iniciar("s", CONTRATOS, "pedido")

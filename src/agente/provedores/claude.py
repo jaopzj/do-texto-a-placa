@@ -30,11 +30,17 @@ no código.
 """
 import json
 
-from ..laco import Chamada, Resposta
+from ..laco import Chamada, ErroProvedor, Resposta
 
 MODELO = "claude-haiku-5-5"
 ESFORCO = "high"
 MAX_TOKENS = 16000
+# Tempo máximo de cada pedido, em segundos, e novas tentativas da biblioteca. O padrão da
+# biblioteca é 10 minutos por pedido: uma conexão presa deixava o terminal parado por até
+# meia hora, e o briefing parecia travado (ADR-016). Uma resposta inteira do Haiku 5.5 com
+# MAX_TOKENS cabe com folga em 3 minutos.
+TEMPO_LIMITE = 180.0
+TENTATIVAS = 2
 BETA_FALLBACK = "server-side-fallback-2026-07-01"
 
 # Modelos sem modelo reserva no servidor: o pedido não pode levar ``fallbacks``.
@@ -60,7 +66,7 @@ class ProvedorClaude:
                  max_tokens: int = MAX_TOKENS):
         if cliente is None:
             import anthropic
-            cliente = anthropic.Anthropic()
+            cliente = anthropic.Anthropic(timeout=TEMPO_LIMITE, max_retries=TENTATIVAS)
         self.cliente = cliente
         self.modelo = modelo
         self.esforco = esforco
@@ -105,7 +111,17 @@ class ProvedorClaude:
     def _gerar(self) -> Resposta:
         reserva = {} if self.modelo in SEM_RESERVA else {
             "betas": [BETA_FALLBACK], "fallbacks": "default"}
-        resposta = self.cliente.beta.messages.create(
+        try:
+            resposta = self._pedir(reserva)
+        except Exception as e:
+            if type(e).__module__.split(".")[0] == "anthropic":
+                raise ErroProvedor(f"{type(e).__name__}: {e}") from e
+            raise
+        self.mensagens.append({"role": "assistant", "content": resposta.content})
+        return traduzir(resposta)
+
+    def _pedir(self, reserva: dict):
+        return self.cliente.beta.messages.create(
             model=self.modelo,
             max_tokens=self.max_tokens,
             system=self.sistema,
@@ -116,8 +132,6 @@ class ProvedorClaude:
             cache_control={"type": "ephemeral"},
             **reserva,
         )
-        self.mensagens.append({"role": "assistant", "content": resposta.content})
-        return traduzir(resposta)
 
 
 def traduzir(resposta) -> Resposta:

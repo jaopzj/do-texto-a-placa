@@ -105,6 +105,11 @@ aprovação, 130 cancelado.
   ferramenta; depois disso, encerra e explica. Se a resposta cortada deixou um pedido de
   ferramenta pela metade, o adaptador o fecha como erro antes do texto, como a API exige.
   O agente do Marco 4 não usa `ao_parar` e não muda.
+- O adaptador da Anthropic (ADR-011) passa a criar o cliente com tempo limite de 180 s por
+  pedido e 2 novas tentativas (`TEMPO_LIMITE`, `TENTATIVAS`), no lugar do padrão da
+  biblioteca (10 minutos), que deixava uma conexão presa parecer um travamento. Erro da
+  biblioteca vira `ErroProvedor` (em `laco.py`), e o briefing termina com uma mensagem em
+  português, sem traceback, em vez de cair. Vale também para o agente do Marco 4 e o eval.
 - O terminal mostra "(aguardando o agente...)" depois de cada resposta do usuário, porque o
   modelo pode levar vários segundos até a próxima pergunta, e o registro completo do último
   briefing (PENSA, AGE, OBSERVA, LEMBRETE) vai para `saida/briefing/registro.txt`, mesmo
