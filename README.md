@@ -23,6 +23,7 @@ make netlist     # gera a netlist da placa de referência (SKiDL)
 make posicionar  # gera a placa de referência com as peças nas posições de posicoes.yaml
 make placa       # pipeline completo: netlist, placa, roteamento, DRC e arquivos da fábrica
 make testes      # roda os testes automáticos (pytest)
+make briefing PEDIDO="..."  # o agente transforma o pedido na especificação (Marco 5)
 make shell       # abre um terminal dentro do container
 ```
 
@@ -173,13 +174,41 @@ Enquanto roda, o terminal mostra cada passo do agente (tempo, tokens, custo até
 que ele pensou) e cada ferramenta (`ok` ou `ERRO` com o motivo). A rodada entra na tabela
 de `docs/evals.md`, e o registro completo de cada execução fica em `saida/evals/`.
 
+## Briefing e primeira aprovação (`make briefing`)
+
+O briefing (Marco 5, Partes 1 e 2; ADR-016) substitui o `spec.yaml` escrito à mão. O agente
+recebe o pedido em português, consulta a base de componentes, faz no máximo seis perguntas
+e entrega a especificação, que o código valida pelo mesmo caminho do `spec.yaml`
+(`src/especificacao.py`). Se ela tiver problema, a lista volta ao agente, que corrige. O
+código também confere que toda decisão do agente cita um documento que existe (um arquivo
+do repositório, como `componentes/<id>.yaml`, ou um documento citado pela base) e que toda
+pergunta respondida com "não sei" virou decisão do agente (`decidido_por: agente`).
+
+Com a especificação válida, o terminal mostra o resumo da primeira aprovação: componentes
+escolhidos (com aviso para os que estão em `rascunho`), decisões tomadas pelo agente, com
+motivo e fonte, pendências e custo estimado (a base ainda não tem preços, então o custo não
+é estimado). Responda `s` para seguir ou escreva a correção em português, que volta para o
+agente. Chama a API da Anthropic, como o `make eval`:
+
+```bash
+export ANTHROPIC_API_KEY=...      # só no terminal; nunca em arquivo ou commit
+make briefing PEDIDO="quero um monitor de umidade do solo com ESP32 e um LCD"
+```
+
+A especificação aprovada vai para `saida/briefing/<projeto>/spec.yaml`, com a conversa
+(perguntas, respostas, entregas recusadas, correções, tokens e custo) em `briefing.yaml` ao
+lado. Ela é a entrada do agente do Marco 4: `python -m src.agente saida/briefing/<projeto>/spec.yaml`.
+`MODELO` e `ESFORCO` funcionam como no `make eval`. Fora do container:
+`python -m src.briefing "pedido" [--andamento]`, onde `--andamento` mostra cada passo do
+agente.
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
 carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`,
 `tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py`,
-`tests/test_gerar_netlist.py`, `tests/test_rodar.py` e `tests/test_terminal.py` (a parte que
-não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+`tests/test_gerar_netlist.py`, `tests/test_rodar.py`, `tests/test_terminal.py`,
+`tests/test_briefing.py` e `tests/test_aprovacao.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura
