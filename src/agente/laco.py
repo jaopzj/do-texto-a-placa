@@ -79,6 +79,12 @@ class Provedor(Protocol):
 
     def continuar(self, resultados: list[tuple[Chamada, dict]]) -> Resposta: ...
 
+    def responder(self, texto: str) -> Resposta:
+        """Manda uma mensagem de texto quando a última resposta não pediu ferramenta.
+
+        Só o briefing usa (``conversar`` com ``ao_parar``, ADR-016)."""
+        ...
+
 
 @dataclass(frozen=True)
 class Evento:
@@ -132,7 +138,8 @@ def conversar(pedido: str, provedor: Provedor, sistema: str, contratos: list[dic
               executar: Callable[[str, dict], dict], max_passos: int = 30,
               registrar: Callable[[str], None] | None = print,
               eventos: Callable[[Evento], None] | None = None,
-              encerrar: Callable[[], bool] | None = None) -> Execucao:
+              encerrar: Callable[[], bool] | None = None,
+              ao_parar: Callable[[Resposta], str | None] | None = None) -> Execucao:
     """O laço PENSA -> AGE -> OBSERVA, sem saber quais são as ferramentas.
 
     ``executar(nome, argumentos)`` roda cada pedido do modelo e devolve o dicionário que
@@ -140,6 +147,10 @@ def conversar(pedido: str, provedor: Provedor, sistema: str, contratos: list[dic
     ``encerrar()`` fica verdadeiro depois das ferramentas de um passo (o briefing para assim
     que a especificação é aprovada, ADR-016) ou quando acabam os passos. A ``Execucao``
     volta sem ``estado``: quem conhece as ferramentas preenche.
+
+    ``ao_parar(resposta)`` é chamado quando o modelo para sem pedir ferramenta. Se devolver
+    um texto, ele vai ao modelo (``provedor.responder``) e o laço segue; se devolver
+    ``None``, o laço termina. Sem ``ao_parar``, o laço termina, como no Marco 4.
     """
     log = registrar or (lambda _linha: None)
     avisar = eventos or (lambda _evento: None)
@@ -160,10 +171,20 @@ def conversar(pedido: str, provedor: Provedor, sistema: str, contratos: list[dic
                                   else execucao.custo_usd + resposta.custo_usd)
         if resposta.texto:
             log(f"[passo {passo}] PENSA: {resposta.texto}")
-        if not resposta.chamadas:               # nenhum pedido de ferramenta: terminou
-            execucao.texto_final = resposta.texto or "O agente encerrou sem resposta textual."
-            execucao.terminou = True
-            break
+        if not resposta.chamadas:               # nenhum pedido de ferramenta
+            lembrete = ao_parar(resposta) if ao_parar is not None else None
+            if lembrete is None:                # terminou
+                execucao.texto_final = (resposta.texto
+                                        or "O agente encerrou sem resposta textual.")
+                execucao.terminou = True
+                break
+            if passo == max_passos:
+                execucao.texto_final = "Limite de passos atingido sem conclusão."
+                break
+            log(f"[passo {passo}] LEMBRETE: {lembrete}")
+            inicio = time.monotonic()
+            resposta = provedor.responder(lembrete)
+            continue
         resultados = []
         for chamada in resposta.chamadas:
             log(f"[passo {passo}] AGE: {chamada.nome}({chamada.argumentos})")

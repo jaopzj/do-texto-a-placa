@@ -33,6 +33,7 @@ class ProvedorFalso:
         self.respostas = list(respostas)
         self.inicio = None
         self.resultados: list[list[tuple[Chamada, dict]]] = []
+        self.textos: list[str] = []
 
     def iniciar(self, sistema, contratos, pedido):
         self.inicio = (sistema, contratos, pedido)
@@ -40,6 +41,10 @@ class ProvedorFalso:
 
     def continuar(self, resultados):
         self.resultados.append(resultados)
+        return self.respostas.pop(0)
+
+    def responder(self, texto):
+        self.textos.append(texto)
         return self.respostas.pop(0)
 
 
@@ -353,11 +358,53 @@ def test_briefing_completo_com_nao_sei_erro_e_correcao(base):
     assert len(b.perguntas) == 1 and len(b.entregas_invalidas) == 1 and len(b.correcoes) == 1
 
 
-def test_agente_que_para_sem_entregar(base):
-    provedor = ProvedorFalso([Resposta(texto="Qual display você quer?")])
-    resultado = conduzir_briefing("uma placa", provedor, _briefing(base, Usuario()))
+def test_agente_que_pergunta_em_texto_solto_recebe_lembrete_e_continua(base):
+    # O travamento visto na primeira execução real: o modelo escreve a pergunta em texto, em
+    # vez de usar perguntar_usuario, e o briefing acabava ali, sem especificação.
+    provedor = ProvedorFalso([
+        Resposta(texto="Qual display você quer?"),
+        _pede(("perguntar_usuario", {"pergunta": "Qual display você quer?",
+                                     "sobre": ["modulo:display"]})),
+        _pede(("entregar_especificacao", {"especificacao": ENTREGA})),
+    ])
+    usuario = Usuario(respostas=["um LCD 16x2"], vereditos=[Veredito(True)])
+    b = _briefing(base, usuario)
+    resultado = conduzir_briefing("uma placa", provedor, b)
+    assert resultado.especificacao is not None and provedor.respostas == []
+    assert len(provedor.textos) == 1 and "não chegou ao usuário" in provedor.textos[0]
+    assert "perguntar_usuario (restam 6" in provedor.textos[0]
+    assert usuario.perguntas[0][0] == "Qual display você quer?" and b.lembretes == 1
+
+
+def test_lembretes_seguidos_tem_limite(base):
+    provedor = ProvedorFalso([Resposta(texto="Qual display você quer?")] * (mod.MAX_LEMBRETES + 1))
+    b = _briefing(base, Usuario())
+    resultado = conduzir_briefing("uma placa", provedor, b)
     assert resultado.especificacao is None and resultado.execucao.terminou
     assert resultado.execucao.texto_final == "Qual display você quer?"
+    assert len(provedor.textos) == mod.MAX_LEMBRETES == b.lembretes
+    assert provedor.respostas == []
+
+
+def test_ferramenta_zera_os_lembretes_seguidos(base):
+    b = _briefing(base, Usuario())
+    for _ in range(mod.MAX_LEMBRETES):
+        assert b.ao_parar(Resposta(texto="?")) is not None
+        b.executar_ferramenta("buscar_componente", {"termo": "lcd"})
+    assert b.ao_parar(Resposta(texto="?")) is not None and b.lembretes == mod.MAX_LEMBRETES + 1
+
+
+def test_lembrete_depois_do_limite_de_perguntas_manda_decidir(base):
+    b = _briefing(base, Usuario(respostas=["x"] * MAX_PERGUNTAS))
+    for _ in range(MAX_PERGUNTAS):
+        b.executar_ferramenta("perguntar_usuario", {"pergunta": "?", "sobre": ["projeto"]})
+    assert "limite de perguntas acabou" in b.ao_parar(Resposta(texto="?"))
+
+
+def test_sem_lembrete_depois_de_aprovada(base):
+    b = _briefing(base, Usuario(vereditos=[Veredito(True)]))
+    b.executar_ferramenta("entregar_especificacao", {"especificacao": ENTREGA})
+    assert b.aprovada and b.ao_parar(Resposta(texto="Pronto.")) is None
 
 
 def test_limite_de_passos_do_briefing(base):
@@ -403,7 +450,7 @@ def test_salvar_e_o_agente_do_m4_aceita(base, tmp_path):
 
 
 def test_so_grava_especificacao_aprovada(base, tmp_path):
-    provedor = ProvedorFalso([Resposta(texto="desisto")])
+    provedor = ProvedorFalso([Resposta(texto="desisto")] * (mod.MAX_LEMBRETES + 1))
     resultado = conduzir_briefing("x", provedor, _briefing(base, Usuario()))
     with pytest.raises(ValueError):
         salvar(resultado, tmp_path)
@@ -441,6 +488,9 @@ def test_main_aprova_e_grava(tmp_path):
     assert codigo == 0
     assert "Pergunta 1 de 6: Que display?" in texto
     assert "Componentes escolhidos" in texto and "Especificação aprovada e gravada" in texto
+    # Depois de cada resposta, o terminal avisa que está esperando o agente.
+    assert texto.count(mod.AGUARDE) == 2              # no começo e depois da pergunta
+    assert "AGE: perguntar_usuario" in (tmp_path / mod.REGISTRO).read_text(encoding="utf-8")
     assert (tmp_path / "monitor-umidade" / "spec.yaml").is_file()
 
 
@@ -461,13 +511,15 @@ def test_main_cancelado_nao_grava(tmp_path):
     respostas = [_pede(("entregar_especificacao", {"especificacao": ENTREGA}))]
     codigo, texto = _rodar_main(tmp_path, respostas, [])     # fim da entrada na aprovação
     assert codigo == 130 and "cancelado" in texto
-    assert list(tmp_path.iterdir()) == []
+    assert [a.name for a in tmp_path.iterdir()] == [mod.REGISTRO]   # nenhuma especificação
 
 
 def test_main_sem_aprovacao(tmp_path):
-    codigo, texto = _rodar_main(tmp_path, [Resposta(texto="Não consigo.")], [])
+    codigo, texto = _rodar_main(tmp_path, [Resposta(texto="Não consigo.")] * 4, [])
     assert codigo == 1 and "sem uma especificação aprovada" in texto and "Não consigo." in texto
-    assert list(tmp_path.iterdir()) == []
+    assert [a.name for a in tmp_path.iterdir()] == [mod.REGISTRO]
+    registro = (tmp_path / mod.REGISTRO).read_text(encoding="utf-8")
+    assert registro.count("LEMBRETE:") == mod.MAX_LEMBRETES and "O registro completo" in texto
 
 
 def test_contratos_do_briefing_viram_ferramentas_da_api():

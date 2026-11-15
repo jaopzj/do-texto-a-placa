@@ -84,6 +84,24 @@ class ProvedorClaude:
             for chamada, saida in resultados]})
         return self._gerar()
 
+    def responder(self, texto: str) -> Resposta:
+        """Mensagem de texto do nosso código (o lembrete do briefing, ADR-016).
+
+        Se a última resposta foi cortada com um pedido de ferramenta pela metade, a API exige
+        um resultado para ele: vai como erro (não executado), junto com o texto."""
+        pendentes = [b.id for b in self._ultima_resposta() if b.type == "tool_use"]
+        conteudo = [{"type": "tool_result", "tool_use_id": i, "is_error": True,
+                     "content": "não executado: a resposta foi cortada ou recusada"}
+                    for i in pendentes]
+        self.mensagens.append({"role": "user",
+                               "content": conteudo + [{"type": "text", "text": texto}]})
+        return self._gerar()
+
+    def _ultima_resposta(self) -> list:
+        if self.mensagens and self.mensagens[-1]["role"] == "assistant":
+            return list(self.mensagens[-1]["content"])
+        return []
+
     def _gerar(self) -> Resposta:
         reserva = {} if self.modelo in SEM_RESERVA else {
             "betas": [BETA_FALLBACK], "fallbacks": "default"}

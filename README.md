@@ -198,6 +198,9 @@ make briefing PEDIDO="quero um monitor de umidade do solo com ESP32 e um LCD"
 A especificação aprovada vai para `saida/briefing/<projeto>/spec.yaml`, com a conversa
 (perguntas, respostas, entregas recusadas, correções, tokens e custo) em `briefing.yaml` ao
 lado. Ela é a entrada do agente do Marco 4: `python -m src.agente saida/briefing/<projeto>/spec.yaml`.
+Se o agente escrever uma pergunta em texto, em vez de usar a ferramenta, o código o lembra
+de usar a ferramenta (até três vezes seguidas), em vez de encerrar o briefing. O registro
+completo do último briefing fica em `saida/briefing/registro.txt`.
 `MODELO` e `ESFORCO` funcionam como no `make eval`. Fora do container:
 `python -m src.briefing "pedido" [--andamento]`, onde `--andamento` mostra cada passo do
 agente.

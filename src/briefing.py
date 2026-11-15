@@ -48,12 +48,16 @@ from .especificacao import (Decisao, ErroEspecificacao, Especificacao,
 
 RAIZ = Path(__file__).resolve().parents[1]
 SAIDA = RAIZ / "saida" / "briefing"
+REGISTRO = "registro.txt"            # o registro completo do último briefing, em --saida
+AGUARDE = "(aguardando o agente...)"
 
-# Mude a versão sempre que mudar SISTEMA, PEDIDO, PADROES ou o texto de um contrato.
-VERSAO_DO_PROMPT = "1"
+# Mude a versão sempre que mudar SISTEMA, PEDIDO, PADROES, o lembrete (ao_parar) ou o texto
+# de um contrato. Versão 2: lembrete quando o agente para sem usar ferramenta.
+VERSAO_DO_PROMPT = "2"
 
 MAX_PERGUNTAS = 6        # guia, Parte 1: perguntas demais viram formulário
 MAX_PASSOS = 40          # respostas do modelo no briefing inteiro, com as correções
+MAX_LEMBRETES = 3        # lembretes seguidos quando o agente para sem usar ferramenta
 
 # Ferramentas do agente do Marco 4 que o briefing reaproveita, sem mudar nada nelas: o
 # briefing consulta a base e registra o que falta, mas não seleciona nem liga peças.
@@ -321,6 +325,8 @@ class Briefing:
         self.perguntas: list[Pergunta] = []
         self.entregas_invalidas: list[list[str]] = []
         self.correcoes: list[str] = []
+        self.lembretes = 0                                 # total, para o briefing.yaml
+        self._lembretes_seguidos = 0
         self.especificacao: Especificacao | None = None    # só depois de aprovada
 
     @property
@@ -331,8 +337,31 @@ class Briefing:
     def pendencias(self) -> list:
         return list(self.ferramentas.pendencias)
 
+    def ao_parar(self, resposta) -> str | None:
+        """O agente parou sem pedir ferramenta: devolve o lembrete, ou ``None`` para encerrar.
+
+        Texto solto não chega ao usuário (só ``perguntar_usuario`` e a aprovação chegam), e
+        uma resposta cortada no limite de tokens também para assim. Sem o lembrete, o
+        briefing acabaria ali, sem especificação, no meio da conversa. Depois de
+        ``MAX_LEMBRETES`` lembretes seguidos sem nenhuma ferramenta, o briefing encerra.
+        """
+        if self.aprovada or self._lembretes_seguidos >= MAX_LEMBRETES:
+            return None
+        self._lembretes_seguidos += 1
+        self.lembretes += 1
+        restantes = MAX_PERGUNTAS - len(self.perguntas)
+        perguntar = (f"se precisa perguntar algo, chame perguntar_usuario (restam {restantes} "
+                     "pergunta(s))" if restantes else
+                     "o limite de perguntas acabou: decida o que falta com padrões sensatos "
+                     "(decidido_por: agente)")
+        return ("[mensagem do sistema, não do usuário] A sua última mensagem não chegou ao "
+                "usuário: ele só vê as perguntas feitas com perguntar_usuario e o resumo de "
+                f"entregar_especificacao. Continue o briefing: {perguntar}; se já tem o que "
+                "precisa, entregue a especificação inteira com entregar_especificacao.")
+
     def executar_ferramenta(self, nome, entrada) -> dict:
         """Executa o pedido do modelo e devolve o resultado, mesmo se for inválido."""
+        self._lembretes_seguidos = 0
         if nome in DA_BASE:
             return self.ferramentas.executar_ferramenta(nome, entrada)
         if nome not in FERRAMENTAS:
@@ -413,7 +442,7 @@ def conduzir_briefing(texto: str, provedor: Provedor, briefing: Briefing,
     execucao = conversar(montar_pedido(texto), provedor, SISTEMA, CONTRATOS,
                          briefing.executar_ferramenta, max_passos=max_passos,
                          registrar=registrar, eventos=eventos,
-                         encerrar=lambda: briefing.aprovada)
+                         encerrar=lambda: briefing.aprovada, ao_parar=briefing.ao_parar)
     return Resultado(texto.strip(), briefing, execucao)
 
 
@@ -448,6 +477,7 @@ def salvar(resultado: Resultado, pasta: Path) -> Path:
         "perguntas": [asdict(p) | {"sobre": list(p.sobre)} for p in b.perguntas],
         "entregas_invalidas": b.entregas_invalidas,
         "correcoes": b.correcoes,
+        "lembretes": b.lembretes,
         "pendencias": [asdict(p) for p in b.pendencias],
         "passos": ex.passos,
         "tokens_entrada": ex.tokens_entrada,
@@ -491,18 +521,37 @@ def main(argumentos: list[str], provedor: Provedor | None = None,
             from .agente.provedores.claude import ProvedorClaude
             provedor = ProvedorClaude(opcoes.modelo, esforco=opcoes.esforco)
 
+        # Entre uma resposta do usuário e a próxima pergunta, o modelo pode levar vários
+        # segundos (raciocínio e consultas à base). O aviso diz que nada travou.
         def perguntar(pergunta: str, numero: int, maximo: int) -> str:
             escrever(f"\nPergunta {numero} de {maximo}: {pergunta}")
-            return ler("> ")
+            resposta = ler("> ")
+            escrever(AGUARDE)
+            return resposta
 
-        briefing = Briefing(perguntar, lambda spec, pend: pedir_aprovacao(
-            spec, briefing.base, pend, ler=ler, escrever=escrever))
+        def aprovar(spec: Especificacao, pendencias: list) -> Veredito:
+            veredito = pedir_aprovacao(spec, briefing.base, pendencias, ler=ler,
+                                       escrever=escrever)
+            if not veredito.aprovada:
+                escrever(AGUARDE)
+            return veredito
+
+        briefing = Briefing(perguntar, aprovar)
         terminal = Terminal(escrever)
         terminal.info(f"briefing · {opcoes.modelo} · esforço {opcoes.esforco}")
-        resultado = conduzir_briefing(texto, provedor, briefing,
-                                      eventos=terminal if opcoes.andamento else None)
+        escrever(AGUARDE)
+        # O registro completo (PENSA, AGE, OBSERVA, LEMBRETE) vai para arquivo, para dar
+        # para ver depois o que o agente fez, inclusive num briefing que não terminou.
+        opcoes.saida.mkdir(parents=True, exist_ok=True)
+        with (opcoes.saida / REGISTRO).open("w", encoding="utf-8") as arquivo_registro:
+            def registrar(linha: str) -> None:
+                arquivo_registro.write(linha + "\n")
+                arquivo_registro.flush()
+
+            resultado = conduzir_briefing(texto, provedor, briefing, registrar=registrar,
+                                          eventos=terminal if opcoes.andamento else None)
     except (EOFError, KeyboardInterrupt):
-        escrever("\nBriefing cancelado. Nada foi gravado.")
+        escrever("\nBriefing cancelado. Nenhuma especificação foi gravada.")
         return 130
 
     ex = resultado.execucao
@@ -513,6 +562,7 @@ def main(argumentos: list[str], provedor: Provedor | None = None,
         escrever("\nO briefing terminou sem uma especificação aprovada.")
         if ex.texto_final:
             escrever(f"Última mensagem do agente: {ex.texto_final}")
+        escrever(f"O registro completo está em {opcoes.saida / REGISTRO}.")
         escrever(resumo)
         return 1
     arquivo = salvar(resultado, opcoes.saida)

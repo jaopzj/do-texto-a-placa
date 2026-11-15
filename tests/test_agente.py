@@ -358,3 +358,70 @@ def test_conversar_sem_encerrar_segue_ate_o_modelo_parar():
     provedor = ProvedorFalso([_pede(("a", {})), Resposta(texto="Fim.")])
     execucao = conversar("p", provedor, "s", [], lambda n, a: {"ok": False}, registrar=None)
     assert execucao.terminou and execucao.texto_final == "Fim." and execucao.passos == 2
+
+
+class ProvedorQueResponde(ProvedorFalso):
+    """Também recebe texto (``responder``), como o adaptador da Anthropic."""
+
+    def __init__(self, respostas):
+        super().__init__(respostas)
+        self.textos: list[str] = []
+
+    def responder(self, texto):
+        self.textos.append(texto)
+        return self.respostas.pop(0)
+
+
+def test_conversar_ao_parar_manda_lembrete_e_segue():
+    from src.agente.laco import conversar
+    feitas = []
+    provedor = ProvedorQueResponde([Resposta(texto="Qual display?"), _pede(("a", {})),
+                                    Resposta(texto="Fim.")])
+    lembretes = iter(["use a ferramenta", None])
+    execucao = conversar("p", provedor, "s", [], lambda n, a: feitas.append(n) or {"ok": True},
+                         registrar=None, ao_parar=lambda _r: next(lembretes))
+    assert provedor.textos == ["use a ferramenta"] and feitas == ["a"]
+    assert execucao.terminou and execucao.texto_final == "Fim." and execucao.passos == 3
+
+
+def test_conversar_ao_parar_respeita_o_limite_de_passos():
+    from src.agente.laco import conversar
+    provedor = ProvedorQueResponde([Resposta(texto="?")] * 5)
+    execucao = conversar("p", provedor, "s", [], lambda n, a: {}, max_passos=3,
+                         registrar=None, ao_parar=lambda _r: "lembrete")
+    assert not execucao.terminou and execucao.passos == 3 and len(provedor.textos) == 2
+    assert "Limite" in execucao.texto_final
+
+
+def test_claude_responder_fecha_pedido_cortado_e_manda_o_texto():
+    pytest.importorskip("anthropic")
+    from src.agente.provedores.claude import ProvedorClaude
+
+    pedidos = []
+    respostas = [
+        _mensagem([{"type": "tool_use", "id": "toolu_9", "name": "buscar_componente",
+                    "input": {}}], stop_reason="max_tokens"),
+        _mensagem([{"type": "text", "text": "Ok."}], stop_reason="end_turn"),
+        _mensagem([{"type": "text", "text": "De novo."}], stop_reason="end_turn"),
+    ]
+
+    class Mensagens:
+        def create(self, **parametros):
+            pedidos.append({**parametros, "messages": list(parametros["messages"])})
+            return respostas.pop(0)
+
+    class Cliente:
+        class beta:
+            messages = Mensagens()
+
+    provedor = ProvedorClaude(cliente=Cliente())
+    assert provedor.iniciar("s", CONTRATOS, "pedido").chamadas == ()   # cortada
+    assert provedor.responder("continue").texto == "Ok."
+    ultima = pedidos[1]["messages"][-1]
+    assert ultima["role"] == "user"
+    assert [b["type"] for b in ultima["content"]] == ["tool_result", "text"]
+    assert ultima["content"][0]["tool_use_id"] == "toolu_9" and ultima["content"][0]["is_error"]
+    assert ultima["content"][1]["text"] == "continue"
+    # Sem pedido pendente, vai só o texto.
+    provedor.responder("mais uma")
+    assert [b["type"] for b in pedidos[2]["messages"][-1]["content"]] == ["text"]

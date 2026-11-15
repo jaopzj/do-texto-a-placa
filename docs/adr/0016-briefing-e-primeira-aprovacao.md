@@ -79,8 +79,8 @@ estimado; nenhum valor é chutado.
 (não é o texto do modelo) em `saida/briefing/<projeto.id>/spec.yaml`, com um cabeçalho que
 diz que veio do briefing. Ao lado, `briefing.yaml` guarda o pedido, a versão do prompt, as
 perguntas e respostas, as entregas recusadas, as correções, as pendências, os tokens e o
-custo. A pasta não é `saida/<projeto>/`, que o `make placa` apaga. Nada é gravado sem
-aprovação, nem num cancelamento (fim da entrada ou Ctrl+C).
+custo. A pasta não é `saida/<projeto>/`, que o `make placa` apaga. Nenhuma especificação é
+gravada sem aprovação, nem num cancelamento (fim da entrada ou Ctrl+C).
 
 **Comandos.** `python -m src.briefing "pedido"` (com `--modelo`, `--esforco`, `--saida` e
 `--andamento`) e `make briefing PEDIDO="..."`, que roda o container com `-it` e repassa só a
@@ -96,9 +96,19 @@ aprovação, 130 cancelado.
 - O código não consegue conferir se uma decisão marcada `usuario` veio mesmo do usuário
   (fora das respostas "não sei"). O resumo lista quem decidiu cada módulo, para o usuário
   pegar isso na aprovação.
-- Se o modelo perguntar em texto solto em vez de usar `perguntar_usuario`, o laço termina
-  sem especificação e o programa diz isso. Responder a ele exigiria mudar o `Provedor`; fica
-  para quando aparecer nas execuções reais.
+- O usuário só fala com o agente por ferramentas, então uma resposta sem nenhuma (pergunta
+  em texto solto, ou resposta cortada no limite de tokens) não pode encerrar o briefing no
+  meio. Isso aconteceu nas primeiras execuções reais: o fluxo "travava" em algumas
+  perguntas. Agora o `Provedor` tem `responder(texto)`, `conversar` aceita `ao_parar`, e o
+  briefing devolve ao modelo um lembrete do sistema (a mensagem não chegou ao usuário; use
+  `perguntar_usuario` ou entregue), no máximo `MAX_LEMBRETES` (3) vezes seguidas sem nenhuma
+  ferramenta; depois disso, encerra e explica. Se a resposta cortada deixou um pedido de
+  ferramenta pela metade, o adaptador o fecha como erro antes do texto, como a API exige.
+  O agente do Marco 4 não usa `ao_parar` e não muda.
+- O terminal mostra "(aguardando o agente...)" depois de cada resposta do usuário, porque o
+  modelo pode levar vários segundos até a próxima pergunta, e o registro completo do último
+  briefing (PENSA, AGE, OBSERVA, LEMBRETE) vai para `saida/briefing/registro.txt`, mesmo
+  quando ele não termina.
 - Uma peça que a base não tem vira pendência, aparece na aprovação e fica fora da
   especificação. A especificação não guarda pendências: elas ficam no `briefing.yaml`.
 - O motor de regras, o laço de correção e a segunda aprovação (Partes 3 a 5) não fazem parte
