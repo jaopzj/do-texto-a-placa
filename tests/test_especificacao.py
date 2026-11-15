@@ -264,3 +264,13 @@ def test_arquivo_fora_de_utf8_e_recusado(tmp_path, base):
     arquivo.write_bytes("projeto: Ação".encode("latin-1"))
     with pytest.raises(ErroEspecificacao, match="UTF-8"):
         ler_especificacao(arquivo, base)
+
+
+def test_texto_valida_igual_ao_arquivo(base):
+    """especificacao_de_texto (usada pelo briefing, ADR-016) é o mesmo caminho do arquivo."""
+    from src.especificacao import especificacao_de_texto
+    texto = SPEC.read_text(encoding="utf-8")
+    assert especificacao_de_texto(texto, Path("x"), base) == ler_especificacao(SPEC, base)
+    with pytest.raises(ErroEspecificacao) as erro:
+        especificacao_de_texto("projeto: [", Path("entrega"), base)
+    assert str(erro.value.problemas[0]).startswith("entrega: YAML inválido")

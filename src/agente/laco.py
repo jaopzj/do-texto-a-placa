@@ -10,6 +10,10 @@ Veio do ``agente_minimo.py`` do protótipo (seção 3, "O LAÇO DO AGENTE"). O q
   os tokens e o custo, que o eval da Parte 6 (``src/evals/rodar.py``) mede.
 
 O laço não executa código gerado pelo modelo: só chama as seis ferramentas, pelo nome.
+
+``rodar_agente`` é o agente do Marco 4. O laço em si está em ``conversar``, que recebe o
+prompt, os contratos e quem executa as ferramentas; o briefing do Marco 5
+(``src/briefing.py``, ADR-016) usa o mesmo laço com as ferramentas dele.
 """
 import time
 from dataclasses import dataclass, field
@@ -117,12 +121,32 @@ def rodar_agente(pedido: str, provedor: Provedor, ferramentas: Ferramentas | Non
     silencia. ``eventos`` recebe cada ``Evento``, para mostrar o andamento no terminal.
     """
     ferramentas = Ferramentas() if ferramentas is None else ferramentas
+    execucao = conversar(pedido, provedor, SISTEMA, CONTRATOS, ferramentas.executar_ferramenta,
+                         max_passos=max_passos, registrar=registrar, eventos=eventos)
+    execucao.estado = ferramentas.estado()
+    execucao.tentativas_inexistentes = list(ferramentas.tentativas_inexistentes)
+    return execucao
+
+
+def conversar(pedido: str, provedor: Provedor, sistema: str, contratos: list[dict],
+              executar: Callable[[str, dict], dict], max_passos: int = 30,
+              registrar: Callable[[str], None] | None = print,
+              eventos: Callable[[Evento], None] | None = None,
+              encerrar: Callable[[], bool] | None = None) -> Execucao:
+    """O laço PENSA -> AGE -> OBSERVA, sem saber quais são as ferramentas.
+
+    ``executar(nome, argumentos)`` roda cada pedido do modelo e devolve o dicionário que
+    volta para ele. O laço para quando o modelo não pede nenhuma ferramenta, quando
+    ``encerrar()`` fica verdadeiro depois das ferramentas de um passo (o briefing para assim
+    que a especificação é aprovada, ADR-016) ou quando acabam os passos. A ``Execucao``
+    volta sem ``estado``: quem conhece as ferramentas preenche.
+    """
     log = registrar or (lambda _linha: None)
     avisar = eventos or (lambda _evento: None)
     execucao = Execucao(texto_final="", terminou=False, passos=0)
 
     inicio = time.monotonic()
-    resposta = provedor.iniciar(SISTEMA, CONTRATOS, pedido)
+    resposta = provedor.iniciar(sistema, contratos, pedido)
     for passo in range(1, max_passos + 1):
         avisar(Evento("resposta", passo, resposta=resposta,
                       segundos=time.monotonic() - inicio))
@@ -143,17 +167,19 @@ def rodar_agente(pedido: str, provedor: Provedor, ferramentas: Ferramentas | Non
         resultados = []
         for chamada in resposta.chamadas:
             log(f"[passo {passo}] AGE: {chamada.nome}({chamada.argumentos})")
-            saida = ferramentas.executar_ferramenta(chamada.nome, chamada.argumentos)
+            saida = executar(chamada.nome, chamada.argumentos)
             log(f"[passo {passo}] OBSERVA: {saida}")
             avisar(Evento("chamada", passo, chamada=chamada, saida=saida))
             resultados.append((chamada, saida))
         execucao.chamadas.extend(resultados)
+        if encerrar is not None and encerrar():
+            execucao.texto_final = resposta.texto
+            execucao.terminou = True
+            break
         if passo == max_passos:
             execucao.texto_final = "Limite de passos atingido sem conclusão."
             break
         inicio = time.monotonic()
         resposta = provedor.continuar(resultados)
 
-    execucao.estado = ferramentas.estado()
-    execucao.tentativas_inexistentes = list(ferramentas.tentativas_inexistentes)
     return execucao

@@ -330,3 +330,31 @@ def test_main_do_agente_aceita_modelo_e_esforco(monkeypatch, capsys):
     saida = capsys.readouterr().out
     assert "claude-haiku-5-5 · esforço low" in saida and "passo 1" in saida
     assert "=== RESPOSTA FINAL ===" in saida and "Nada a fazer." in saida
+
+
+# --- Laço genérico (conversar), usado também pelo briefing (Marco 5, ADR-016) ------------------
+
+def test_conversar_com_outras_ferramentas_e_encerrar():
+    from src.agente.laco import conversar
+    feitas = []
+
+    def executar(nome, argumentos):
+        feitas.append(nome)
+        return {"ok": True}
+
+    provedor = ProvedorFalso([_pede(("a", {}), ("b", {})), _pede(("c", {})),
+                              Resposta(texto="não deveria ser pedida")])
+    execucao = conversar("pedido", provedor, "sistema", [{"name": "a"}], executar,
+                         registrar=None, encerrar=lambda: "c" in feitas)
+    assert provedor.inicio == ("sistema", [{"name": "a"}], "pedido")
+    assert feitas == ["a", "b", "c"]
+    assert execucao.terminou and execucao.passos == 2
+    assert len(provedor.respostas) == 1            # parou sem pedir a terceira resposta
+    assert execucao.estado == {}                   # quem conhece as ferramentas preenche
+
+
+def test_conversar_sem_encerrar_segue_ate_o_modelo_parar():
+    from src.agente.laco import conversar
+    provedor = ProvedorFalso([_pede(("a", {})), Resposta(texto="Fim.")])
+    execucao = conversar("p", provedor, "s", [], lambda n, a: {"ok": False}, registrar=None)
+    assert execucao.terminou and execucao.texto_final == "Fim." and execucao.passos == 2
