@@ -36,10 +36,12 @@ from ..componentes.modelo import Componente
 from ..especificacao import ler_especificacao
 from ..gerar_netlist import ErroGeracao, gerar_netlist
 from .comparar import ErroNetlist, comparar
+from .equivalencias import Equivalencia, ler_equivalencias
 
 RAIZ = Path(__file__).resolve().parents[2]
 SPEC = RAIZ / "placas" / "monitor-umidade" / "spec.yaml"
 GABARITO = RAIZ / "placas" / "monitor-umidade" / "gabarito.net"
+EQUIVALENCIAS = RAIZ / "placas" / "monitor-umidade" / "equivalencias.yaml"
 EVALS_MD = RAIZ / "docs" / "evals.md"
 SAIDA = RAIZ / "saida" / "evals"
 META = 4            # execuções equivalentes ao gabarito, em 5 (guia, Parte 6)
@@ -104,7 +106,8 @@ class Rodada:
 
 def executar_uma(indice: int, provedor: Provedor, spec: Path, gabarito: Path,
                  base: dict[str, Componente], pasta: Path,
-                 terminal: Terminal | None = None) -> ResultadoExecucao:
+                 terminal: Terminal | None = None,
+                 equivalencias: list[Equivalencia] | None = None) -> ResultadoExecucao:
     """Roda o agente uma vez, mede contra o gabarito e grava os arquivos em ``pasta``.
 
     Com ``terminal``, mostra cada passo do agente e cada etapa da medida enquanto acontece.
@@ -140,7 +143,7 @@ def executar_uma(indice: int, provedor: Provedor, spec: Path, gabarito: Path,
         netlist = pasta / "agente.net"
         gerar_netlist(execucao.estado, netlist, base)
         info(f"netlist em {netlist}; comparando com {gabarito.name}")
-        comparacao = comparar(gabarito, netlist, base)
+        comparacao = comparar(gabarito, netlist, base, equivalencias)
         equivalente, motivo = comparacao.equivalente, comparacao.resumo()
     except (ErroGeracao, ErroNetlist) as erro:
         equivalente, motivo = False, str(erro)
@@ -159,7 +162,8 @@ def executar_uma(indice: int, provedor: Provedor, spec: Path, gabarito: Path,
 def rodar_eval(n: int, criar_provedor: Callable[[], Provedor], modelo: str, esforco: str,
                spec: Path = SPEC, gabarito: Path = GABARITO,
                base: dict[str, Componente] | None = None, saida: Path = SAIDA,
-               avisar: Callable[[str], None] | None = None) -> Rodada:
+               avisar: Callable[[str], None] | None = None,
+               equivalencias: Path | None = EQUIVALENCIAS) -> Rodada:
     """Roda ``n`` execuções e devolve a ``Rodada``. ``criar_provedor`` dá um provedor novo
     a cada execução, para nenhuma conversa vazar para a seguinte. ``avisar`` recebe as
     linhas do andamento (o ``main`` usa ``print`` com ``flush``); ``None`` silencia."""
@@ -167,6 +171,7 @@ def rodar_eval(n: int, criar_provedor: Callable[[], Provedor], modelo: str, esfo
         raise ValueError("n precisa ser pelo menos 1")
     base = carregar_todos() if base is None else base
     ler_especificacao(spec, base)                      # falha antes de gastar com a API
+    trocaveis = ler_equivalencias(equivalencias, spec, base) if equivalencias else []
     agora = datetime.now()
     pasta = Path(saida) / agora.strftime("%Y-%m-%d_%H%M%S")
     rodada = Rodada(data=agora.strftime("%Y-%m-%d"), versao_do_prompt=VERSAO_DO_PROMPT,
@@ -181,7 +186,7 @@ def rodar_eval(n: int, criar_provedor: Callable[[], Provedor], modelo: str, esfo
             avisar("")
             terminal.info(f"=== execução {i} de {n} ===")
         resultado = executar_uma(i, criar_provedor(), spec, gabarito, base, pasta / str(i),
-                                 terminal)
+                                 terminal, trocaveis)
         (pasta / str(i) / "resultado.json").write_text(
             json.dumps(asdict(resultado), indent=2, ensure_ascii=False), encoding="utf-8")
         rodada.execucoes.append(resultado)
@@ -250,6 +255,8 @@ def main(argumentos: list[str] | None = None) -> int:
                         help=f"padrão: {ESFORCO}")
     parser.add_argument("--spec", type=Path, default=SPEC)
     parser.add_argument("--gabarito", type=Path, default=GABARITO)
+    parser.add_argument("--equivalencias", type=Path, default=EQUIVALENCIAS,
+                        help="pinos que o gabarito aceita trocar (ADR-015)")
     parser.add_argument("--saida", type=Path, default=SAIDA)
     parser.add_argument("--registrar", action="store_true",
                         help="acrescenta a rodada à tabela de docs/evals.md")
@@ -262,7 +269,8 @@ def main(argumentos: list[str] | None = None) -> int:
 
     rodada = rodar_eval(opcoes.n, lambda: ProvedorClaude(opcoes.modelo, esforco=opcoes.esforco),
                         opcoes.modelo, opcoes.esforco, opcoes.spec, opcoes.gabarito,
-                        saida=opcoes.saida, avisar=lambda linha: print(linha, flush=True))
+                        saida=opcoes.saida, avisar=lambda linha: print(linha, flush=True),
+                        equivalencias=opcoes.equivalencias)
     print(CABECALHO + "\n" + rodada.linha_markdown(opcoes.observacao))
     if opcoes.registrar:
         registrar(rodada, EVALS_MD, opcoes.observacao)

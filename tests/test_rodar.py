@@ -95,13 +95,22 @@ def test_registrar_acrescenta_a_linha_na_tabela(tmp_path):
     arquivo = tmp_path / "evals.md"
     arquivo.write_text(rodar.EVALS_MD.read_text(encoding="utf-8") + "\n## Notas\n\ntexto\n",
                        encoding="utf-8")
+    def linhas_da_tabela() -> list[str]:
+        depois = arquivo.read_text(encoding="utf-8").split(MARCADOR)[1].strip().split("\n")
+        return depois[:next((i for i, ln in enumerate(depois) if not ln.startswith("|")),
+                            len(depois))]
+    # As rodadas já registradas no docs/evals.md de verdade ficam antes das novas.
+    antigas = [ln for ln in linhas_da_tabela()[2:] if not ln.startswith("| (nenhuma")]
     registrar(_rodada(_execucao()), arquivo, "teste")
     registrar(_rodada(_execucao(), _execucao(2)), arquivo)
     texto = arquivo.read_text(encoding="utf-8")
-    tabela = texto.split(MARCADOR)[1].strip().split("\n")
+    tabela = linhas_da_tabela()
     assert "\n".join(tabela[:2]) == CABECALHO
-    assert tabela[2].startswith("| 2026-11-14 | 1 |") and tabela[2].endswith("| teste |")
-    assert "| 2 de 2 |" in tabela[3]
+    assert tabela[2:2 + len(antigas)] == antigas
+    novas = tabela[2 + len(antigas):]
+    assert len(novas) == 2
+    assert novas[0].startswith("| 2026-11-14 | 1 |") and novas[0].endswith("| teste |")
+    assert "| 2 de 2 |" in novas[1]
     assert "(nenhuma rodada" not in texto
     assert texto.rstrip().endswith("## Notas\n\ntexto")
 
@@ -284,3 +293,34 @@ def test_eval_em_silencio_por_padrao(tmp_path, capsys):
     rodar_eval(1, lambda: ProvedorRoteiro(_chamadas(), falhar=True), "m", "high", base=BASE,
                saida=tmp_path)
     assert capsys.readouterr().out == ""
+
+
+# --- Equivalências de pinos (ADR-015) ----------------------------------------------------------
+
+def test_equivalencias_com_problema_param_antes_de_chamar_a_api(tmp_path):
+    ruim = tmp_path / "equivalencias.yaml"
+    ruim.write_text('equivalencias:\n  - pino: "esp32-devkitc-v4: IO34"\n    funcao: ADC1_\n'
+                    "    requisito: Um requisito que o spec não tem.\n", encoding="utf-8")
+    def nunca():
+        raise AssertionError("não devia criar o provedor")
+    with pytest.raises(ValueError, match="não está no spec"):
+        rodar_eval(1, nunca, "m", "high", base=BASE, saida=tmp_path / "saida", avisar=None,
+                   equivalencias=ruim)
+
+
+@precisa_do_skidl
+def test_sensor_em_outro_pino_do_adc1_bate_com_o_gabarito(tmp_path):
+    ligacoes = dict(LIGACOES_A_MAO, SENSOR=[("S1", "AOUT"), ("U1", "IO32")])
+    rodada = _rodar(tmp_path, ProvedorRoteiro(_chamadas(ligacoes)))
+    [r] = rodada.execucoes
+    assert r.equivalente, r.motivo
+    assert r.motivo == ("equivalente ao gabarito (troca aceita: esp32-devkitc-v4: IO32 "
+                        "no lugar de esp32-devkitc-v4: IO34)")
+
+
+@precisa_do_skidl
+def test_sem_equivalencias_o_sensor_em_outro_pino_nao_bate(tmp_path):
+    ligacoes = dict(LIGACOES_A_MAO, SENSOR=[("S1", "AOUT"), ("U1", "IO32")])
+    rodada = rodar_eval(1, lambda: ProvedorRoteiro(_chamadas(ligacoes)), "roteiro", "-",
+                        base=BASE, saida=tmp_path, avisar=None, equivalencias=None)
+    assert not rodada.execucoes[0].equivalente

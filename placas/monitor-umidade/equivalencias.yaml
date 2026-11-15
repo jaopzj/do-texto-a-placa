@@ -1,0 +1,15 @@
+# Pinos do gabarito que o eval aceita trocar por outro equivalente (ADR-015).
+#
+# O gabarito.net fixa uma resposta, mas o spec.yaml deixa algumas escolhas em aberto. Cada
+# entrada abaixo cita, palavra por palavra, o requisito do spec que deixou a escolha aberta.
+# Quais pinos valem quem decide é o código (src/evals/equivalencias.py), pela base: os pinos
+# da mesma peça com alguma função que começa por "funcao".
+#
+# Escrito à mão e revisado como o gabarito: só o john muda este arquivo.
+
+equivalencias:
+  # O gabarito usa o IO34 (ADC1_CH6, pecas.md). O spec só pede um pino do ADC1, então o
+  # VP, o VN, o IO35, o IO32 e o IO33 também cumprem.
+  - pino: "esp32-devkitc-v4: IO34"
+    funcao: ADC1_
+    requisito: A saída AOUT do sensor vai num pino do ESP32 com função ADC1.

@@ -36,6 +36,7 @@ from pathlib import Path
 
 from ..componentes.carregar import carregar_todos
 from ..componentes.modelo import Componente
+from .equivalencias import Equivalencia, rotulos_da_peca
 
 
 class ErroNetlist(ValueError):
@@ -64,11 +65,17 @@ class Comparacao:
     grupos_sobrando: list[list[str]] = field(default_factory=list)
     # Pino -> (ligado a, no esperado; ligado a, no obtido), para os pinos que mudaram.
     pinos_divergentes: dict[str, tuple[list[str], list[str]]] = field(default_factory=dict)
+    # Pino do esperado -> pino do obtido que o substituiu por uma equivalência (ADR-015).
+    trocas: dict[str, str] = field(default_factory=dict)
 
     def resumo(self) -> str:
+        trocas = "; ".join(f"{obtido} no lugar de {esperado}"
+                           for esperado, obtido in self.trocas.items())
         if self.equivalente:
-            return "equivalente ao gabarito"
+            return "equivalente ao gabarito" + (f" (troca aceita: {trocas})" if trocas else "")
         linhas = ["diferente do gabarito:"]
+        if trocas:
+            linhas.append(f"- troca aceita: {trocas}")
         for c in self.componentes_faltando:
             linhas.append(f"- falta o componente {c}")
         for c in self.componentes_sobrando:
@@ -179,10 +186,8 @@ def _identificar(ref: str, comp: list, base: dict[str, Componente], problemas: l
         problemas.append(f"{ref}: símbolo {simbolo!r} não é o da base "
                          f"({conector.kicad_simbolo!r}) para {chave}")
         return None
-    nomes = {p.numero: p.nome for p in peca.pinos}
-    contagem = Counter(nomes.values())
-    pinos = [(n, f"{id_peca}: {nomes[n]}" + (f"#{n}" if contagem[nomes[n]] > 1 else ""))
-             for n in conector.pinos]
+    rotulos = rotulos_da_peca(peca)
+    pinos = [(n, rotulos[n]) for n in conector.pinos]
     return chave, id_peca, pinos
 
 
@@ -254,11 +259,49 @@ def ler_estrutura(netlist, base: dict[str, Componente] | None = None) -> Estrutu
     return Estrutura(frozenset(componentes), frozenset(grupos), frozenset(isolados))
 
 
-def comparar(esperado, obtido, base: dict[str, Componente] | None = None) -> Comparacao:
-    """Compara duas netlists (caminho, texto ou ``Estrutura``) pela estrutura elétrica."""
+def _pinos(estrutura: Estrutura) -> set[str]:
+    return {p for g in estrutura.grupos for p in g} | set(estrutura.isolados)
+
+
+def aplicar_equivalencias(esperado: Estrutura, obtido: Estrutura,
+                          equivalencias: list[Equivalencia]) -> tuple[Estrutura, dict[str, str]]:
+    """Troca no ``obtido`` cada pino alternativo pelo pino do esperado (ADR-015).
+
+    Para cada equivalência, a troca só acontece quando: o pino do esperado está ligado no
+    esperado e não aparece no obtido, e exatamente um pino alternativo aparece no obtido sem
+    aparecer no esperado. Em qualquer outro caso nada muda, e a comparação mostra a diferença.
+    Devolve a estrutura trocada e as trocas feitas (pino do esperado -> pino do obtido).
+    """
+    trocas: dict[str, str] = {}
+    usados_a = _pinos(esperado)
+    for eq in equivalencias:
+        usados_b = _pinos(obtido)
+        if eq.pino not in usados_a or eq.pino in usados_b:
+            continue
+        candidatos = [p for p in eq.alternativas if p in usados_b and p not in usados_a]
+        if len(candidatos) != 1:
+            continue
+        [alternativo] = candidatos
+        def trocar(p: str) -> str:
+            return eq.pino if p == alternativo else p
+        obtido = Estrutura(obtido.componentes,
+                           frozenset(frozenset(map(trocar, g)) for g in obtido.grupos),
+                           frozenset(map(trocar, obtido.isolados)))
+        trocas[eq.pino] = alternativo
+    return obtido, trocas
+
+
+def comparar(esperado, obtido, base: dict[str, Componente] | None = None,
+             equivalencias: list[Equivalencia] | None = None) -> Comparacao:
+    """Compara duas netlists (caminho, texto ou ``Estrutura``) pela estrutura elétrica.
+
+    ``equivalencias`` (de ``ler_equivalencias``) diz quais pinos do esperado podem aparecer
+    trocados no obtido sem mudar o resultado; sem elas, a comparação é exata.
+    """
     base = carregar_todos() if base is None else base
     a = esperado if isinstance(esperado, Estrutura) else ler_estrutura(esperado, base)
     b = obtido if isinstance(obtido, Estrutura) else ler_estrutura(obtido, base)
+    b, trocas = aplicar_equivalencias(a, b, equivalencias or [])
 
     def vizinhos(estrutura: Estrutura) -> dict[str, frozenset[str]]:
         return {p: g - {p} for g in estrutura.grupos for p in g}
@@ -273,6 +316,7 @@ def comparar(esperado, obtido, base: dict[str, Componente] | None = None) -> Com
         grupos_faltando=sorted(sorted(g) for g in a.grupos - b.grupos),
         grupos_sobrando=sorted(sorted(g) for g in b.grupos - a.grupos),
         pinos_divergentes=divergentes,
+        trocas=trocas,
     )
     return resultado
 
