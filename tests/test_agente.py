@@ -330,3 +330,136 @@ def test_main_do_agente_aceita_modelo_e_esforco(monkeypatch, capsys):
     saida = capsys.readouterr().out
     assert "claude-haiku-5-5 · esforço low" in saida and "passo 1" in saida
     assert "=== RESPOSTA FINAL ===" in saida and "Nada a fazer." in saida
+
+
+# --- Laço genérico (conversar), usado também pelo briefing (Marco 5, ADR-016) ------------------
+
+def test_conversar_com_outras_ferramentas_e_encerrar():
+    from src.agente.laco import conversar
+    feitas = []
+
+    def executar(nome, argumentos):
+        feitas.append(nome)
+        return {"ok": True}
+
+    provedor = ProvedorFalso([_pede(("a", {}), ("b", {})), _pede(("c", {})),
+                              Resposta(texto="não deveria ser pedida")])
+    execucao = conversar("pedido", provedor, "sistema", [{"name": "a"}], executar,
+                         registrar=None, encerrar=lambda: "c" in feitas)
+    assert provedor.inicio == ("sistema", [{"name": "a"}], "pedido")
+    assert feitas == ["a", "b", "c"]
+    assert execucao.terminou and execucao.passos == 2
+    assert len(provedor.respostas) == 1            # parou sem pedir a terceira resposta
+    assert execucao.estado == {}                   # quem conhece as ferramentas preenche
+
+
+def test_conversar_sem_encerrar_segue_ate_o_modelo_parar():
+    from src.agente.laco import conversar
+    provedor = ProvedorFalso([_pede(("a", {})), Resposta(texto="Fim.")])
+    execucao = conversar("p", provedor, "s", [], lambda n, a: {"ok": False}, registrar=None)
+    assert execucao.terminou and execucao.texto_final == "Fim." and execucao.passos == 2
+
+
+class ProvedorQueResponde(ProvedorFalso):
+    """Também recebe texto (``responder``), como o adaptador da Anthropic."""
+
+    def __init__(self, respostas):
+        super().__init__(respostas)
+        self.textos: list[str] = []
+
+    def responder(self, texto):
+        self.textos.append(texto)
+        return self.respostas.pop(0)
+
+
+def test_conversar_ao_parar_manda_lembrete_e_segue():
+    from src.agente.laco import conversar
+    feitas = []
+    provedor = ProvedorQueResponde([Resposta(texto="Qual display?"), _pede(("a", {})),
+                                    Resposta(texto="Fim.")])
+    lembretes = iter(["use a ferramenta", None])
+    execucao = conversar("p", provedor, "s", [], lambda n, a: feitas.append(n) or {"ok": True},
+                         registrar=None, ao_parar=lambda _r: next(lembretes))
+    assert provedor.textos == ["use a ferramenta"] and feitas == ["a"]
+    assert execucao.terminou and execucao.texto_final == "Fim." and execucao.passos == 3
+
+
+def test_conversar_ao_parar_respeita_o_limite_de_passos():
+    from src.agente.laco import conversar
+    provedor = ProvedorQueResponde([Resposta(texto="?")] * 5)
+    execucao = conversar("p", provedor, "s", [], lambda n, a: {}, max_passos=3,
+                         registrar=None, ao_parar=lambda _r: "lembrete")
+    assert not execucao.terminou and execucao.passos == 3 and len(provedor.textos) == 2
+    assert "Limite" in execucao.texto_final
+
+
+def test_claude_responder_fecha_pedido_cortado_e_manda_o_texto():
+    pytest.importorskip("anthropic")
+    from src.agente.provedores.claude import ProvedorClaude
+
+    pedidos = []
+    respostas = [
+        _mensagem([{"type": "tool_use", "id": "toolu_9", "name": "buscar_componente",
+                    "input": {}}], stop_reason="max_tokens"),
+        _mensagem([{"type": "text", "text": "Ok."}], stop_reason="end_turn"),
+        _mensagem([{"type": "text", "text": "De novo."}], stop_reason="end_turn"),
+    ]
+
+    class Mensagens:
+        def create(self, **parametros):
+            pedidos.append({**parametros, "messages": list(parametros["messages"])})
+            return respostas.pop(0)
+
+    class Cliente:
+        class beta:
+            messages = Mensagens()
+
+    provedor = ProvedorClaude(cliente=Cliente())
+    assert provedor.iniciar("s", CONTRATOS, "pedido").chamadas == ()   # cortada
+    assert provedor.responder("continue").texto == "Ok."
+    ultima = pedidos[1]["messages"][-1]
+    assert ultima["role"] == "user"
+    assert [b["type"] for b in ultima["content"]] == ["tool_result", "text"]
+    assert ultima["content"][0]["tool_use_id"] == "toolu_9" and ultima["content"][0]["is_error"]
+    assert ultima["content"][1]["text"] == "continue"
+    # Sem pedido pendente, vai só o texto.
+    provedor.responder("mais uma")
+    assert [b["type"] for b in pedidos[2]["messages"][-1]["content"]] == ["text"]
+
+
+def test_claude_erro_da_api_vira_erro_provedor_e_tem_tempo_limite(monkeypatch):
+    anthropic = pytest.importorskip("anthropic")
+    from src.agente.laco import ErroProvedor
+    from src.agente.provedores import claude
+
+    class Mensagens:
+        def create(self, **parametros):
+            raise anthropic.APIConnectionError(message="Request timed out.", request=None)
+
+    class Cliente:
+        class beta:
+            messages = Mensagens()
+
+    with pytest.raises(ErroProvedor, match="APIConnectionError"):
+        claude.ProvedorClaude(cliente=Cliente()).iniciar("s", CONTRATOS, "pedido")
+    # O cliente de verdade sai com tempo limite e novas tentativas, não com o padrão de 10 min.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "chave-falsa-do-teste")
+    real = claude.ProvedorClaude().cliente
+    assert real.timeout == claude.TEMPO_LIMITE == 180.0
+    assert real.max_retries == claude.TENTATIVAS
+
+
+def test_claude_erro_que_nao_e_da_api_passa_direto():
+    pytest.importorskip("anthropic")
+    from src.agente.provedores.claude import ProvedorClaude
+
+    class Mensagens:
+        def create(self, **parametros):
+            raise ValueError("bug nosso")
+
+    class Cliente:
+        class beta:
+            messages = Mensagens()
+
+    with pytest.raises(ValueError):
+        ProvedorClaude(cliente=Cliente()).iniciar("s", CONTRATOS, "pedido")

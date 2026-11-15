@@ -25,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell configurar netlist posicionar placa testes eval pcb rotear drc
+.PHONY: imagem versao shell configurar netlist posicionar placa testes eval briefing pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -101,6 +101,17 @@ OBS ?=
 eval:
 	@test -n "$$ANTHROPIC_API_KEY" || { echo "Defina ANTHROPIC_API_KEY no terminal antes do make eval."; exit 1; }
 	docker run --rm --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -e PYTHONUNBUFFERED=1 -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.evals.rodar --n $(N) --modelo $(MODELO) --esforco $(ESFORCO) --observacao "$(OBS)" --registrar
+
+# Briefing (Marco 5, Partes 1 e 2): o agente transforma o pedido em português na
+# especificação da placa, com no máximo seis perguntas e a primeira aprovação (responda s ou
+# escreva uma correção). É interativo (docker -it). Chama a API da Anthropic, com a chave da
+# variável ANTHROPIC_API_KEY do seu terminal, como no make eval. A especificação aprovada vai
+# para saida/briefing/<projeto>/spec.yaml.
+# Ex.: make briefing PEDIDO="quero um monitor de umidade do solo com ESP32 e um LCD"
+PEDIDO ?=
+briefing:
+	@test -n "$$ANTHROPIC_API_KEY" || { echo "Defina ANTHROPIC_API_KEY no terminal antes do make briefing."; exit 1; }
+	docker run --rm -it --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -e PYTHONUNBUFFERED=1 -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.briefing "$(PEDIDO)" --modelo $(MODELO) --esforco $(ESFORCO)
 
 # Gera a placa a partir da netlist (Caminho A: kinet2pcb). Marco 1 / M1-2.
 pcb:

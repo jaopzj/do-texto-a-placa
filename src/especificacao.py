@@ -182,23 +182,34 @@ def ler_especificacao(arquivo: Path, base: dict[str, Componente] | None = None) 
         raise ErroEspecificacao([Problema(arquivo, "o arquivo não existe")]) from None
     except UnicodeDecodeError:
         raise ErroEspecificacao([Problema(arquivo, "o arquivo não está em UTF-8")]) from None
+    return especificacao_de_texto(texto, arquivo, base)
+
+
+def especificacao_de_texto(texto: str, origem: Path,
+                           base: dict[str, Componente] | None = None) -> Especificacao:
+    """Como ``ler_especificacao``, mas a partir do texto YAML já lido.
+
+    ``origem`` só nomeia o texto nos problemas (o arquivo, ou o que o briefing recebeu do
+    agente). É o mesmo caminho de validação para a especificação escrita à mão e para a
+    que o briefing produz (ADR-016).
+    """
     try:
         dados = yaml.load(texto, Loader=_CarregadorSemChaveRepetida)  # noqa: S506 (SafeLoader)
     except yaml.YAMLError as e:
-        raise ErroEspecificacao([Problema(arquivo, f"YAML inválido: {e}")]) from None
+        raise ErroEspecificacao([Problema(origem, f"YAML inválido: {e}")]) from None
     if not isinstance(dados, dict):
         tipo = "vazio" if dados is None else type(dados).__name__
         raise ErroEspecificacao([Problema(
-            arquivo, f"o conteúdo precisa ser um mapa de campos, mas é {tipo}")])
+            origem, f"o conteúdo precisa ser um mapa de campos, mas é {tipo}")])
     try:
         spec = Especificacao.model_validate(dados)
     except ValidationError as e:
         raise ErroEspecificacao([
-            Problema(arquivo, f"{_local(err['loc'])}: {err['msg']}") for err in e.errors()
+            Problema(origem, f"{_local(err['loc'])}: {err['msg']}") for err in e.errors()
         ]) from None
 
     base = carregar_todos() if base is None else base
     problemas = referencias_invalidas(spec, base)
     if problemas:
-        raise ErroEspecificacao([Problema(arquivo, p) for p in problemas])
+        raise ErroEspecificacao([Problema(origem, p) for p in problemas])
     return spec
