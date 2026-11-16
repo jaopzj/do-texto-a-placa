@@ -42,6 +42,9 @@ from ..especificacao import Especificacao
 
 FERRAMENTAS = ("buscar_componente", "ler_dados_componente", "selecionar_componente",
                "conectar", "registrar_decisao", "registrar_pendencia")
+# Só no laço de correção (Marco 5, Parte 4; ADR-018): desfazer uma ligação apontada pelo
+# relatório. O agente do Marco 4 e o eval continuam com as seis.
+FERRAMENTAS_DE_CORRECAO = FERRAMENTAS + ("desconectar",)
 
 # Referência de uma peça no projeto: letra seguida de letras, dígitos ou "_" (ex.: U1, LCD1).
 Referencia = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_]*$")]
@@ -76,6 +79,11 @@ class _ConectarEntrada(_Estrito):
     ref: Texto
     pino: Annotated[int, Field(ge=1)] | Texto     # número ou nome do pino, como na base
     rede: NomeRede
+
+
+class _DesconectarEntrada(_Estrito):
+    ref: Texto
+    pino: Annotated[int, Field(ge=1)] | Texto     # número ou nome do pino, como na base
 
 
 class _DecisaoEntrada(_Estrito):
@@ -148,10 +156,12 @@ class Ferramentas:
 
     ``base`` é a base de componentes (por padrão, ``carregar_todos()``). ``especificacao``
     é opcional: com ela, uma decisão pode citar uma decisão da especificação como fonte.
+    ``correcao`` liga a ferramenta ``desconectar``, que só o laço de correção usa.
     """
 
     def __init__(self, base: dict[str, Componente] | None = None,
-                 especificacao: Especificacao | None = None):
+                 especificacao: Especificacao | None = None, correcao: bool = False):
+        self.ferramentas = FERRAMENTAS_DE_CORRECAO if correcao else FERRAMENTAS
         self.base = carregar_todos() if base is None else dict(base)
         self.especificacao = especificacao
         self.selecoes: dict[str, str] = {}               # ref -> id do componente
@@ -191,6 +201,12 @@ class Ferramentas:
         return self._rodar("conectar", _ConectarEntrada, self._conectar,
                            ref=ref, pino=pino, rede=rede)
 
+    def desconectar(self, ref, pino) -> dict:
+        """Tira o ``pino`` (número ou nome) da peça ``ref`` da rede em que está. Um nome
+        repetido (GND) tira todos os pinos com esse nome. Só no laço de correção."""
+        return self._rodar("desconectar", _DesconectarEntrada, self._desconectar,
+                           ref=ref, pino=pino)
+
     def registrar_decisao(self, decisao, motivo, fonte) -> dict:
         """Guarda uma decisão. ``fonte`` (texto ou lista) precisa apontar para algo que
         existe: veja ``FORMATOS_DE_FONTE``."""
@@ -206,16 +222,18 @@ class Ferramentas:
 
     def executar_ferramenta(self, nome, entrada) -> dict:
         """Executa o pedido ``nome(**entrada)`` e devolve o resultado, mesmo se for inválido."""
-        if nome not in FERRAMENTAS:
+        if nome not in self.ferramentas:
             return _erro("ferramenta_inexistente", f"não existe a ferramenta {nome!r}",
-                         "use uma das ferramentas disponíveis", ferramentas=list(FERRAMENTAS))
+                         "use uma das ferramentas disponíveis",
+                         ferramentas=list(self.ferramentas))
         if not isinstance(entrada, dict):
             return _erro("entrada_invalida", "os argumentos precisam ser um objeto (mapa)",
                          f"chame {nome} com os argumentos nomeados")
         entradas = {"buscar_componente": _BuscarEntrada, "ler_dados_componente": _LerEntrada,
                     "selecionar_componente": _SelecionarEntrada, "conectar": _ConectarEntrada,
                     "registrar_decisao": _DecisaoEntrada,
-                    "registrar_pendencia": _PendenciaEntrada}
+                    "registrar_pendencia": _PendenciaEntrada,
+                    "desconectar": _DesconectarEntrada}
         modelo = entradas[nome]
         try:
             validado = modelo.model_validate(entrada)
@@ -354,6 +372,24 @@ class Ferramentas:
                    pinos=[{"numero": p.numero, "nome": p.nome} for p in pinos],
                    ja_existia=not novos,
                    pinos_na_rede=sum(1 for lig in self.ligacoes.values() if lig.rede == e.rede))
+
+    def _desconectar(self, e: _DesconectarEntrada) -> dict:
+        if e.ref not in self.selecoes:
+            return _erro("peca_nao_selecionada", f"a referência {e.ref!r} não foi selecionada",
+                         "confira as referências no relatório", selecoes=dict(self.selecoes))
+        comp = self.base[self.selecoes[e.ref]]
+        pinos = self._pinos_por_nome_ou_numero(comp, e.pino)
+        if not pinos:
+            return _erro("pino_inexistente", f"{comp.id} ({e.ref}) não tem o pino {e.pino!r}",
+                         "use um número ou um nome de pino da lista",
+                         pinos=[f"{p.numero}:{p.nome}" for p in comp.pinos])
+        tirados = [self.ligacoes.pop((e.ref, p.numero)) for p in pinos
+                   if (e.ref, p.numero) in self.ligacoes]
+        if not tirados:
+            return _erro("pino_sem_ligacao", f"{e.ref}:{e.pino} não está ligado a nenhuma rede",
+                         "nada a desfazer; confira o pino no relatório")
+        return _ok(ref=e.ref, desligados=[{"numero": l.pino, "nome": l.nome, "rede": l.rede}
+                                          for l in tirados])
 
     def _problema_da_fonte(self, fonte: str) -> str | None:
         """Devolve o problema da fonte, ou None se ela aponta para algo que existe."""

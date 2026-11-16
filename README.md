@@ -236,14 +236,32 @@ make custos DETALHE=--detalhe                  # cada lançamento
 python -m src.custos monitor-umidade --json
 ```
 
+## Laço de correção (`make correcao`)
+
+O laço de correção (Marco 5, Parte 4; ADR-018) roda o agente e confere o circuito que ele
+entregou: primeiro a netlist, depois o motor de regras e, se as duas passarem, a placa
+roteada no DRC. Cada problema volta ao agente num relatório curto (etapa, regra, onde, por
+quê, como corrigir), e ele corrige com `conectar` e `desconectar`, uma ferramenta que só o
+laço tem. São no máximo três correções. Se o agente não resolver, ou não mudar nada numa
+correção, o programa para, explica em português o que ficou, e nenhuma placa é entregue.
+
+```bash
+export ANTHROPIC_API_KEY=...      # só no terminal; nunca em arquivo ou commit
+make correcao
+python -m src.correcao placas/monitor-umidade/spec.yaml --sem-placa   # sem rotear (fora do container)
+```
+
+As rodadas ficam em `saida/correcao/<projeto>/` (`correcao.json`, `estado.json` e, por
+rodada que chegou ao DRC, a placa roteada e o `drc.json`).
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
 carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`,
 `tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py`,
 `tests/test_gerar_netlist.py`, `tests/test_rodar.py`, `tests/test_terminal.py`,
-`tests/test_briefing.py`, `tests/test_aprovacao.py`, `tests/test_regras.py` e
-`tests/test_custos.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+`tests/test_briefing.py`, `tests/test_aprovacao.py`, `tests/test_regras.py`,
+`tests/test_custos.py` e `tests/test_correcao.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura
