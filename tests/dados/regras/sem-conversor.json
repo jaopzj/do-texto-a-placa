@@ -1,0 +1,99 @@
+{
+ "selecoes": {
+  "U1": "esp32-devkitc-v4",
+  "LCD1": "display-lcd-1602-i2c",
+  "S1": "sensor-umidade-capacitivo"
+ },
+ "ligacoes": [
+  {
+   "ref": "U1",
+   "pino": 19,
+   "nome": "5V",
+   "rede": "+5V"
+  },
+  {
+   "ref": "LCD1",
+   "pino": 2,
+   "nome": "VCC",
+   "rede": "+5V"
+  },
+  {
+   "ref": "U1",
+   "pino": 1,
+   "nome": "3V3",
+   "rede": "+3V3"
+  },
+  {
+   "ref": "S1",
+   "pino": 2,
+   "nome": "VCC",
+   "rede": "+3V3"
+  },
+  {
+   "ref": "U1",
+   "pino": 14,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "U1",
+   "pino": 20,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "U1",
+   "pino": 26,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "LCD1",
+   "pino": 1,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "S1",
+   "pino": 1,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "S1",
+   "pino": 3,
+   "nome": "AOUT",
+   "rede": "SENSOR"
+  },
+  {
+   "ref": "U1",
+   "pino": 5,
+   "nome": "IO34",
+   "rede": "SENSOR"
+  },
+  {
+   "ref": "U1",
+   "pino": 25,
+   "nome": "IO21",
+   "rede": "SDA"
+  },
+  {
+   "ref": "LCD1",
+   "pino": 3,
+   "nome": "SDA",
+   "rede": "SDA"
+  },
+  {
+   "ref": "U1",
+   "pino": 22,
+   "nome": "IO22",
+   "rede": "SCL"
+  },
+  {
+   "ref": "LCD1",
+   "pino": 4,
+   "nome": "SCL",
+   "rede": "SCL"
+  }
+ ]
+}

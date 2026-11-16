@@ -508,10 +508,22 @@ def main(argumentos: list[str], provedor: Provedor | None = None,
                         choices=["low", "medium", "high", "xhigh", "max"],
                         help=f"padrão: {ESFORCO}")
     parser.add_argument("--saida", type=Path, default=SAIDA, help=f"padrão: {SAIDA}")
+    parser.add_argument("--custos", type=Path, default=None,
+                        help="pasta do registro de custos (padrão: custos/, ao lado da --saida)")
     parser.add_argument("--andamento", action="store_true",
                         help="mostra cada passo do agente (tokens, custo, ferramentas)")
     opcoes = parser.parse_args(argumentos)
+    from .custos import Custos
+    custos = Custos()                     # o projeto só se sabe na entrega aprovada
+    try:
+        return _conduzir(opcoes, provedor, ler, escrever, custos, Terminal, dolares)
+    finally:
+        if custos.lancamentos:
+            arquivo = custos.gravar(opcoes.custos or opcoes.saida.parent / "custos")
+            escrever(f"Custos desta execução ({custos.execucao}) registrados em {arquivo}")
 
+
+def _conduzir(opcoes, provedor, ler, escrever, custos, Terminal, dolares) -> int:
     try:
         texto = opcoes.pedido.strip() or ler("Descreva a placa que você quer: ").strip()
         if not texto:
@@ -548,8 +560,9 @@ def main(argumentos: list[str], provedor: Provedor | None = None,
                 arquivo_registro.write(linha + "\n")
                 arquivo_registro.flush()
 
-            resultado = conduzir_briefing(texto, provedor, briefing, registrar=registrar,
-                                          eventos=terminal if opcoes.andamento else None)
+            resultado = conduzir_briefing(
+                texto, provedor, briefing, registrar=registrar,
+                eventos=custos.ouvinte("briefing", terminal if opcoes.andamento else None))
     except (EOFError, KeyboardInterrupt):
         escrever("\nBriefing cancelado. Nenhuma especificação foi gravada.")
         return 130
@@ -570,6 +583,7 @@ def main(argumentos: list[str], provedor: Provedor | None = None,
         escrever(f"O registro completo está em {opcoes.saida / REGISTRO}.")
         escrever(resumo)
         return 1
+    custos.projeto = resultado.especificacao.projeto.id
     arquivo = salvar(resultado, opcoes.saida)
     try:
         mostrar = arquivo.relative_to(Path.cwd())

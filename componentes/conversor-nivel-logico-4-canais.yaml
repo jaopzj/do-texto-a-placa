@@ -24,12 +24,14 @@ pinos:
     nome: HV1
     tipo: entrada_saida
     funcoes: ["Canal 1 de conversão bidirecional", "Lado de alta tensão"]
+    referencia: HV
     fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
 
   - numero: 2
     nome: HV2
     tipo: entrada_saida
     funcoes: ["Canal 2 de conversão bidirecional", "Lado de alta tensão"]
+    referencia: HV
     fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
 
   - numero: 3
@@ -49,24 +51,28 @@ pinos:
     nome: HV3
     tipo: entrada_saida
     funcoes: ["Canal 3 de conversão bidirecional", "Lado de alta tensão"]
+    referencia: HV
     fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
 
   - numero: 6
     nome: HV4
     tipo: entrada_saida
     funcoes: ["Canal 4 de conversão bidirecional", "Lado de alta tensão"]
+    referencia: HV
     fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
 
   - numero: 7
     nome: LV1
     tipo: entrada_saida
     funcoes: ["Canal 1 de conversão bidirecional", "Lado de baixa tensão"]
+    referencia: LV
     fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
 
   - numero: 8
     nome: LV2
     tipo: entrada_saida
     funcoes: ["Canal 2 de conversão bidirecional", "Lado de baixa tensão"]
+    referencia: LV
     fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
 
   - numero: 9
@@ -86,12 +92,14 @@ pinos:
     nome: LV3
     tipo: entrada_saida
     funcoes: ["Canal 3 de conversão bidirecional", "Lado de baixa tensão"]
+    referencia: LV
     fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
 
   - numero: 12
     nome: LV4
     tipo: entrada_saida
     funcoes: ["Canal 4 de conversão bidirecional", "Lado de baixa tensão"]
+    referencia: LV
     fonte: {documento: "010-0061 Manual.pdf", pagina: 1}
 
 regras:

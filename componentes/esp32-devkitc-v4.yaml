@@ -148,6 +148,7 @@ pinos:
   - numero: 19
     nome: 5V
     tipo: alimentacao
+    tensao_max: 5.0
     funcoes: ["Alimentação de 5 V", "Entrada de alimentação"]
     fonte: {documento: "esp-dev-kits-en-master-esp32.pdf", pagina: 5}
 

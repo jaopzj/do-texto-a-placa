@@ -274,3 +274,27 @@ def test_texto_valida_igual_ao_arquivo(base):
     with pytest.raises(ErroEspecificacao) as erro:
         especificacao_de_texto("projeto: [", Path("entrega"), base)
     assert str(erro.value.problemas[0]).startswith("entrega: YAML inválido")
+
+
+# --- Wi-Fi (ADR-017) -------------------------------------------------------------------
+
+def test_spec_do_monitor_diz_que_usa_wifi(base):
+    spec = ler_especificacao(SPEC, base)
+    assert spec.wifi.valor is True and spec.wifi.decidido_por == "usuario"
+    assert ("wifi", spec.wifi) in spec.decisoes()
+
+
+def test_wifi_e_opcional(tmp_path, dados, base):
+    dados.pop("wifi")
+    assert ler_especificacao(_gravar(tmp_path, dados), base).wifi is None
+
+
+@pytest.mark.parametrize("valor", ["sim", 1, None])
+def test_wifi_so_aceita_booleano(tmp_path, dados, base, valor):
+    dados["wifi"]["valor"] = valor
+    _falha(tmp_path, dados, "wifi", base)
+
+
+def test_wifi_do_agente_exige_motivo_e_fonte(tmp_path, dados, base):
+    dados["wifi"] = {"valor": False, "decidido_por": "agente"}
+    _falha(tmp_path, dados, "wifi", base)

@@ -70,6 +70,8 @@ class Resposta:
     tokens_cache_leitura: int = 0      # parte de tokens_entrada lida do cache
     tokens_cache_escrita: int = 0      # parte de tokens_entrada gravada no cache
     custo_usd: float | None = None     # None quando o adaptador não sabe o preço
+    modelo: str | None = None          # o modelo que de fato respondeu (ADR-017)
+    custo_fonte: str | None = None     # de onde vem o custo_usd (a tabela de preços usada)
 
 
 class ErroProvedor(Exception):
@@ -98,7 +100,7 @@ class Evento:
     """O que acontece no laço, para quem acompanha (``terminal.Terminal``).
 
     ``resposta``: o modelo respondeu (com ``resposta`` e ``segundos`` de espera).
-    ``chamada``: uma ferramenta rodou (com ``chamada`` e ``saida``).
+    ``chamada``: uma ferramenta rodou (com ``chamada``, ``saida`` e ``segundos`` que ela levou).
     """
     tipo: Literal["resposta", "chamada"]
     passo: int
@@ -195,9 +197,11 @@ def conversar(pedido: str, provedor: Provedor, sistema: str, contratos: list[dic
         resultados = []
         for chamada in resposta.chamadas:
             log(f"[passo {passo}] AGE: {chamada.nome}({chamada.argumentos})")
+            antes = time.monotonic()
             saida = executar(chamada.nome, chamada.argumentos)
             log(f"[passo {passo}] OBSERVA: {saida}")
-            avisar(Evento("chamada", passo, chamada=chamada, saida=saida))
+            avisar(Evento("chamada", passo, chamada=chamada, saida=saida,
+                          segundos=time.monotonic() - antes))
             resultados.append((chamada, saida))
         execucao.chamadas.extend(resultados)
         if encerrar is not None and encerrar():

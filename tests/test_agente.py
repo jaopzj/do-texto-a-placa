@@ -316,7 +316,7 @@ def test_laco_avisa_cada_resposta_e_cada_chamada(base):
     assert eventos[3].resposta.texto == "Pronto." and eventos[0].segundos >= 0
 
 
-def test_main_do_agente_aceita_modelo_e_esforco(monkeypatch, capsys):
+def test_main_do_agente_aceita_modelo_e_esforco(monkeypatch, capsys, tmp_path):
     import src.agente.provedores.claude as claude
     from src.agente import __main__ as principal
     criados = []
@@ -325,11 +325,20 @@ def test_main_do_agente_aceita_modelo_e_esforco(monkeypatch, capsys):
         criados.append((modelo, esforco))
         return ProvedorFalso([Resposta(texto="Nada a fazer.")])
     monkeypatch.setattr(claude, "ProvedorClaude", falso)
-    assert principal.main(["--modelo", "claude-haiku-5-5", "--esforco", "low"]) == 0
+    assert principal.main(["--modelo", "claude-haiku-5-5", "--esforco", "low",
+                           "--custos", str(tmp_path), "--saida", str(tmp_path)]) == 0
     assert criados == [("claude-haiku-5-5", "low")]
+    from src.custos import ler
+    resposta, motor = ler(tmp_path / "monitor-umidade.jsonl")
+    assert (resposta.etapa, resposta.tipo, resposta.custo) == (
+        "agente", "chamada_llm", "desconhecido")
+    # O agente não ligou nada: o motor de regras não aprova um circuito vazio.
+    assert (motor.etapa, motor.tipo, motor.custo) == ("motor_de_regras", "operacao", "sem_custo")
+    assert (tmp_path / "monitor-umidade" / "estado.json").is_file()
     saida = capsys.readouterr().out
     assert "claude-haiku-5-5 · esforço low" in saida and "passo 1" in saida
     assert "=== RESPOSTA FINAL ===" in saida and "Nada a fazer." in saida
+    assert "=== MOTOR DE REGRAS ===" in saida and "Nada verificado" in saida
 
 
 # --- Laço genérico (conversar), usado também pelo briefing (Marco 5, ADR-016) ------------------

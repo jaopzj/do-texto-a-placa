@@ -205,13 +205,45 @@ completo do último briefing fica em `saida/briefing/registro.txt`.
 `python -m src.briefing "pedido" [--andamento]`, onde `--andamento` mostra cada passo do
 agente.
 
+## Motor de regras (`make regras`) e custos (`make custos`)
+
+O motor de regras (Marco 5, Parte 3; ADR-017) confere o circuito do agente contra as regras
+da base de componentes, uma função por regra, em `src/regras.py`. Cada regra sai `ok`,
+`violada` (com peça, pinos, redes, o porquê e como corrigir), `nao_verificavel` (falta um
+dado na base ou na especificação) ou `manual` (firmware ou operação, que uma pessoa
+confere). O circuito só é aprovado sem nenhuma regra de `erro` violada ou não verificável.
+O agente não chega ao motor: nenhuma ferramenta dele o chama, e o motor lê do estado só as
+peças e as ligações.
+
+```bash
+make regras                                                   # o circuito de referência
+make regras ESTADO=tests/dados/regras/sensor-no-adc2.json     # sensor num pino do ADC2
+python -m src.regras saida/agente/monitor-umidade/estado.json --spec placas/monitor-umidade/spec.yaml --json
+```
+
+O `python -m src.agente` roda o motor no fim e grava `estado.json` e `regras.json` em
+`saida/agente/<projeto>/`. O circuito de referência é aprovado: 12 regras ok e 4 manuais.
+
+Cada execução (briefing, agente, motor) acrescenta o que custou em
+`saida/custos/<projeto>.jsonl`: cada resposta do modelo (modelo, tokens, custo e acumulado) e
+cada operação sem modelo (ferramentas, motor), com o tempo. Tokens vêm da API; o valor em
+US$ é calculado pela tabela de preços do adaptador, não é a fatura, e um modelo sem preço
+fica `desconhecido`, sem valor.
+
+```bash
+make custos                                    # resumo por etapa e total do projeto
+make custos DETALHE=--detalhe                  # cada lançamento
+python -m src.custos monitor-umidade --json
+```
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
 carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`,
 `tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py`,
 `tests/test_gerar_netlist.py`, `tests/test_rodar.py`, `tests/test_terminal.py`,
-`tests/test_briefing.py` e `tests/test_aprovacao.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+`tests/test_briefing.py`, `tests/test_aprovacao.py`, `tests/test_regras.py` e
+`tests/test_custos.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura

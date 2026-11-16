@@ -104,6 +104,12 @@ class Montagem(Decisao):
     valor: Literal["barra_pinos_macho", "barra_pinos_femea"]
 
 
+class Wifi(Decisao):
+    """Se o firmware liga o Wi-Fi. Opcional: sem ela, o motor de regras não consegue julgar
+    as regras que dependem do Wi-Fi (o ADC2 do ESP32) e as marca como não verificáveis."""
+    valor: bool
+
+
 class Restricoes(_Estrito):
     camadas: Camadas
     contorno: Contorno
@@ -115,6 +121,7 @@ class Especificacao(_Estrito):
     modulos: list[Modulo] = Field(min_length=1)
     alimentacao: Alimentacao
     restricoes: Restricoes
+    wifi: Wifi | None = None             # ADR-017
 
     @model_validator(mode="after")
     def _papeis_unicos(self) -> "Especificacao":
@@ -132,6 +139,8 @@ class Especificacao(_Estrito):
         lista.append(("alimentacao", self.alimentacao))
         for nome in ("camadas", "contorno", "montagem"):
             lista.append((f"restricoes.{nome}", getattr(self.restricoes, nome)))
+        if self.wifi is not None:
+            lista.append(("wifi", self.wifi))
         return lista
 
 

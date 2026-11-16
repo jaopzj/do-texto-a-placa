@@ -25,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell configurar netlist posicionar placa testes eval briefing pcb rotear drc
+.PHONY: imagem versao shell configurar netlist posicionar placa testes eval briefing regras custos pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -112,6 +112,21 @@ PEDIDO ?=
 briefing:
 	@test -n "$$ANTHROPIC_API_KEY" || { echo "Defina ANTHROPIC_API_KEY no terminal antes do make briefing."; exit 1; }
 	docker run --rm -it --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -e PYTHONUNBUFFERED=1 -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.briefing "$(PEDIDO)" --modelo $(MODELO) --esforco $(ESFORCO)
+
+# Motor de regras (Marco 5, Parte 3; ADR-017): confere um circuito (o estado do agente, em
+# JSON) contra as regras da base. Não chama a API. Sai com 0 se aprovado, 1 se reprovado.
+# Ex.: make regras ESTADO=tests/dados/regras/sensor-no-adc2.json
+ESTADO ?= tests/dados/regras/referencia.json
+SPEC ?= placas/monitor-umidade/spec.yaml
+regras:
+	$(RUN) python -m src.regras $(ESTADO) --spec $(SPEC)
+
+# Registro de custos (ADR-017): resumo por etapa e total do projeto, de saida/custos/.
+# Ex.: make custos PROJETO=monitor-umidade DETALHE=--detalhe
+PROJETO ?= monitor-umidade
+DETALHE ?=
+custos:
+	$(RUN) python -m src.custos $(PROJETO) $(DETALHE)
 
 # Gera a placa a partir da netlist (Caminho A: kinet2pcb). Marco 1 / M1-2.
 pcb:

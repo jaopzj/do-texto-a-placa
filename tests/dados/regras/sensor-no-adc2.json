@@ -1,0 +1,148 @@
+{
+ "selecoes": {
+  "U1": "esp32-devkitc-v4",
+  "LCD1": "display-lcd-1602-i2c",
+  "S1": "sensor-umidade-capacitivo",
+  "U2": "conversor-nivel-logico-4-canais"
+ },
+ "ligacoes": [
+  {
+   "ref": "U1",
+   "pino": 19,
+   "nome": "5V",
+   "rede": "+5V"
+  },
+  {
+   "ref": "LCD1",
+   "pino": 2,
+   "nome": "VCC",
+   "rede": "+5V"
+  },
+  {
+   "ref": "U2",
+   "pino": 3,
+   "nome": "HV",
+   "rede": "+5V"
+  },
+  {
+   "ref": "U1",
+   "pino": 1,
+   "nome": "3V3",
+   "rede": "+3V3"
+  },
+  {
+   "ref": "S1",
+   "pino": 2,
+   "nome": "VCC",
+   "rede": "+3V3"
+  },
+  {
+   "ref": "U2",
+   "pino": 9,
+   "nome": "LV",
+   "rede": "+3V3"
+  },
+  {
+   "ref": "U1",
+   "pino": 14,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "U1",
+   "pino": 20,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "U1",
+   "pino": 26,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "LCD1",
+   "pino": 1,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "S1",
+   "pino": 1,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "U2",
+   "pino": 4,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "U2",
+   "pino": 10,
+   "nome": "GND",
+   "rede": "GND"
+  },
+  {
+   "ref": "S1",
+   "pino": 3,
+   "nome": "AOUT",
+   "rede": "SENSOR"
+  },
+  {
+   "ref": "U1",
+   "pino": 9,
+   "nome": "IO25",
+   "rede": "SENSOR"
+  },
+  {
+   "ref": "U1",
+   "pino": 25,
+   "nome": "IO21",
+   "rede": "SDA_3V3"
+  },
+  {
+   "ref": "U2",
+   "pino": 7,
+   "nome": "LV1",
+   "rede": "SDA_3V3"
+  },
+  {
+   "ref": "U1",
+   "pino": 22,
+   "nome": "IO22",
+   "rede": "SCL_3V3"
+  },
+  {
+   "ref": "U2",
+   "pino": 8,
+   "nome": "LV2",
+   "rede": "SCL_3V3"
+  },
+  {
+   "ref": "U2",
+   "pino": 1,
+   "nome": "HV1",
+   "rede": "SDA_5V"
+  },
+  {
+   "ref": "LCD1",
+   "pino": 3,
+   "nome": "SDA",
+   "rede": "SDA_5V"
+  },
+  {
+   "ref": "U2",
+   "pino": 2,
+   "nome": "HV2",
+   "rede": "SCL_5V"
+  },
+  {
+   "ref": "LCD1",
+   "pino": 4,
+   "nome": "SCL",
+   "rede": "SCL_5V"
+  }
+ ]
+}
