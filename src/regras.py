@@ -24,7 +24,9 @@ nova nunca passa calada.
 Tensões (em volts), sem nada de memória:
 
 - a tensão de uma rede de alimentação vem dos pinos de alimentação dela que têm
-  ``tensao_max`` na base (o 3V3 do ESP32, o VCC do LCD, o HV e o LV do conversor);
+  ``tensao_max`` na base (o 3V3 e o 5V do ESP32, o VCC do LCD). Os lados de um conversor (os
+  pinos de alimentação citados por ``referencia``, HV e LV) não contam: eles seguem a tensão
+  que recebem, e o ``tensao_max`` deles é o limite do lado, não uma tensão que eles põem;
 - a tensão de um pino de sinal vem do ``referencia`` dele (a tensão da rede do pino de
   alimentação citado) ou, sem isso, do ``nivel_logico`` da peça;
 - o limite de um pino é o ``tensao_max`` dele.
@@ -192,7 +194,7 @@ class Circuito:
         """A tensão de uma rede pelos pinos de alimentação com ``tensao_max`` na base."""
         valores, sem_dado = set(), []
         for p in self.redes.get(rede, []):
-            if p.pino.tipo != "alimentacao" or p.ref == exceto_ref:
+            if p.pino.tipo != "alimentacao" or p.ref == exceto_ref or _lado(p):
                 continue
             if p.pino.tensao_max is None:
                 sem_dado.append(p.rotulo)
@@ -205,13 +207,15 @@ class Circuito:
             return Nivel(valores.pop())
         if sem_dado:
             return Nivel(None, f"a base não diz a tensão de {', '.join(sem_dado)} (tensao_max)")
-        return Nivel(None, f"a rede {rede} não tem pino de alimentação")
+        return Nivel(None, f"a rede {rede} não tem pino de alimentação que diga a tensão")
 
     def nivel_do_pino(self, p: PinoLigado) -> Nivel:
         """A tensão que um pino põe na rede, pelos dados da base."""
         if p.pino.tipo == "terra":
             return Nivel(0.0)
         if p.pino.tipo == "alimentacao":
+            if _lado(p):                         # segue a rede em que está
+                return self.tensao_da_alimentacao(self.rede(p.ref, p.pino))
             if p.pino.tensao_max is None:
                 return Nivel(None, f"a base não diz a tensão de {p.rotulo} (tensao_max)")
             return Nivel(p.pino.tensao_max)
@@ -229,6 +233,12 @@ class Circuito:
             return Nivel(p.peca.nivel_logico)
         return Nivel(None, f"a base não diz a tensão do sinal de {p.rotulo} (nem nivel_logico "
                            f"de {p.peca.id}, nem referencia do pino)")
+
+
+def _lado(p: PinoLigado) -> bool:
+    """Um pino de alimentação que é o lado de um conversor (citado por ``referencia``)."""
+    return p.pino.tipo == "alimentacao" and any(x.referencia == p.pino.nome
+                                                for x in p.peca.pinos)
 
 
 @dataclass(frozen=True)

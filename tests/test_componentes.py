@@ -499,3 +499,27 @@ def test_referencias_de_cada_conector_sao_conferidas(bibliotecas_falsas, sensor)
     assert ausentes[1].startswith(
         "sensor-umidade-capacitivo (conector b): footprint "
         "'Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical'")
+
+
+# --- referencia: a alimentação que define a tensão de um pino de sinal (ADR-017) ---------
+
+def test_referencia_valida_e_aceita(tmp_path, sensor):
+    sensor["pinos"][2]["referencia"] = "VCC"
+    _gravar(tmp_path, "peca.yaml", sensor)
+    assert carregar_todos(tmp_path)["sensor-umidade-capacitivo"].pinos[2].referencia == "VCC"
+
+
+@pytest.mark.parametrize("pino, referencia, trecho", [
+    (2, "NADA", "NADA"),            # não existe pino com esse nome
+    (2, "GND", "GND"),              # existe, mas não é de alimentação
+    (1, "VCC", "VCC"),              # o próprio pino de alimentação não tem referencia
+])
+def test_referencia_invalida_e_recusada(tmp_path, sensor, pino, referencia, trecho):
+    sensor["pinos"][pino]["referencia"] = referencia
+    assert trecho in _um_erro(tmp_path, sensor)
+
+
+def test_conversor_marca_os_lados_de_cada_canal():
+    conv = carregar_todos()["conversor-nivel-logico-4-canais"]
+    lados = {p.nome: p.referencia for p in conv.pinos if p.referencia}
+    assert lados == {f"HV{n}": "HV" for n in range(1, 5)} | {f"LV{n}": "LV" for n in range(1, 5)}

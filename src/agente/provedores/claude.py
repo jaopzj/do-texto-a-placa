@@ -52,6 +52,7 @@ SEM_RESERVA = frozenset({"claude-haiku-5-5"})
 # inteiro do pedido (entrada + cache), e ``None`` é sem limite. O Haiku 5.5 cobra mais caro
 # acima de 100 mil tokens de prompt. Fonte: tabela de preços dos modelos da Anthropic,
 # consultada em 2026-11-14. Atualize junto com a data se o preço mudar.
+FONTE_DOS_PRECOS = "tabela de preços dos modelos da Anthropic, consultada em 2026-11-14"
 Precos = tuple[float, float, float, float]
 PRECOS: dict[str, tuple[tuple[int | None, Precos], ...]] = {
     "claude-opus-5-5": ((None, (4.00, 20.00, 0.20, 5.00)),),
@@ -148,6 +149,7 @@ def traduzir(resposta) -> Resposta:
         texto = (texto + "\n" if texto else "") + "[resposta cortada no limite de tokens]"
         chamadas = ()               # um pedido cortado pode estar incompleto
     uso = resposta.usage
+    modelo = getattr(resposta, "model", None)
     sem_cache = uso.input_tokens or 0
     leitura = getattr(uso, "cache_read_input_tokens", 0) or 0
     escrita = getattr(uso, "cache_creation_input_tokens", 0) or 0
@@ -156,7 +158,8 @@ def traduzir(resposta) -> Resposta:
         texto=texto, chamadas=chamadas,
         tokens_entrada=sem_cache + leitura + escrita, tokens_saida=saida,
         tokens_cache_leitura=leitura, tokens_cache_escrita=escrita,
-        custo_usd=custo(getattr(resposta, "model", None), sem_cache, saida, leitura, escrita))
+        custo_usd=(valor := custo(modelo, sem_cache, saida, leitura, escrita)),
+        modelo=modelo, custo_fonte=FONTE_DOS_PRECOS if valor is not None else None)
 
 
 def custo(modelo: str | None, entrada: int, saida: int, leitura: int, escrita: int

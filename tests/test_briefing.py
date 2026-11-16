@@ -475,7 +475,8 @@ class Teclado:
 
 def _rodar_main(tmp_path, respostas, linhas, argumentos=("quero um monitor",)):
     saida = []
-    codigo = main([*argumentos, "--saida", str(tmp_path)], provedor=ProvedorFalso(respostas),
+    codigo = main([*argumentos, "--saida", str(tmp_path), "--custos", str(tmp_path / "custos")],
+                  provedor=ProvedorFalso(respostas),
                   ler=Teclado(linhas), escrever=saida.append)
     return codigo, "\n".join(saida)
 
@@ -492,12 +493,32 @@ def test_main_aprova_e_grava(tmp_path):
     assert texto.count(mod.AGUARDE) == 2              # no começo e depois da pergunta
     assert "AGE: perguntar_usuario" in (tmp_path / mod.REGISTRO).read_text(encoding="utf-8")
     assert (tmp_path / "monitor-umidade" / "spec.yaml").is_file()
+    # Custos (ADR-017): duas respostas do modelo e as duas ferramentas, no arquivo do projeto.
+    from src.custos import ler
+    lancamentos = ler(tmp_path / "custos" / "monitor-umidade.jsonl")
+    assert [(l.etapa, l.tipo, l.nome) for l in lancamentos] == [
+        ("briefing", "chamada_llm", "resposta do modelo"),
+        ("briefing", "operacao", "perguntar_usuario"),
+        ("briefing", "chamada_llm", "resposta do modelo"),
+        ("briefing", "operacao", "entregar_especificacao")]
+    assert "registrados em" in texto
+
+
+def test_main_cancelado_registra_o_custo_sem_projeto(tmp_path):
+    respostas = [_pede(("perguntar_usuario", {"pergunta": "Que display?",
+                                              "sobre": ["modulo:display"]}))]
+    codigo, _ = _rodar_main(tmp_path, respostas, [])          # fim da entrada na pergunta
+    assert codigo == 130
+    from src.custos import ler
+    [lancamento] = ler(tmp_path / "custos" / "sem-projeto.jsonl")
+    assert lancamento.tipo == "chamada_llm"
 
 
 def test_main_pede_o_pedido_quando_falta(tmp_path):
     respostas = [_pede(("entregar_especificacao", {"especificacao": ENTREGA}))]
     teclado = Teclado(["quero um monitor", "s"])
-    codigo = main(["--saida", str(tmp_path)], provedor=ProvedorFalso(respostas), ler=teclado,
+    codigo = main(["--saida", str(tmp_path), "--custos", str(tmp_path / "custos")],
+                  provedor=ProvedorFalso(respostas), ler=teclado,
                   escrever=lambda _l: None)
     assert codigo == 0 and teclado.prompts[0].startswith("Descreva a placa")
 
@@ -511,13 +532,13 @@ def test_main_cancelado_nao_grava(tmp_path):
     respostas = [_pede(("entregar_especificacao", {"especificacao": ENTREGA}))]
     codigo, texto = _rodar_main(tmp_path, respostas, [])     # fim da entrada na aprovação
     assert codigo == 130 and "cancelado" in texto
-    assert [a.name for a in tmp_path.iterdir()] == [mod.REGISTRO]   # nenhuma especificação
+    assert sorted(a.name for a in tmp_path.iterdir()) == ["custos", mod.REGISTRO]   # nenhuma especificação
 
 
 def test_main_sem_aprovacao(tmp_path):
     codigo, texto = _rodar_main(tmp_path, [Resposta(texto="Não consigo.")] * 4, [])
     assert codigo == 1 and "sem uma especificação aprovada" in texto and "Não consigo." in texto
-    assert [a.name for a in tmp_path.iterdir()] == [mod.REGISTRO]
+    assert sorted(a.name for a in tmp_path.iterdir()) == ["custos", mod.REGISTRO]
     registro = (tmp_path / mod.REGISTRO).read_text(encoding="utf-8")
     assert registro.count("LEMBRETE:") == mod.MAX_LEMBRETES and "O registro completo" in texto
 
@@ -559,10 +580,12 @@ def test_main_falha_da_api_sem_traceback(tmp_path):
     provedor = ProvedorQueFalha([_pede(("perguntar_usuario", {"pergunta": "Que display?",
                                                               "sobre": ["modulo:display"]}))])
     saida = []
-    codigo = main(["placa", "--saida", str(tmp_path)], provedor=provedor,
+    codigo = main(["placa", "--saida", str(tmp_path), "--custos", str(tmp_path / "custos")],
+                  provedor=provedor,
                   ler=Teclado(["LCD"]), escrever=saida.append)
     texto = "\n".join(saida)
     assert codigo == 1 and "A API do modelo falhou: APITimeoutError" in texto
-    assert [a.name for a in tmp_path.iterdir()] == [mod.REGISTRO]
+    assert sorted(a.name for a in tmp_path.iterdir()) == ["custos", mod.REGISTRO]
+    assert (tmp_path / "custos" / "sem-projeto.jsonl").is_file()   # a resposta que veio conta
     assert "OBSERVA: {'ok': True, 'resposta': 'LCD'" in (tmp_path / mod.REGISTRO).read_text(
         encoding="utf-8")
