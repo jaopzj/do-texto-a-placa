@@ -3,8 +3,10 @@
 Depois que o agente monta o circuito, o código confere, nesta ordem:
 
 1. a netlist: o estado precisa virar um plano válido (``gerar_netlist.planejar``);
-2. as regras: o motor de regras (``src/regras.py``, ADR-017) sobre o circuito;
-3. a placa: netlist, placa, posições, roteamento e DRC (``src/drc.py``), só se 1 e 2
+2. a alimentação: toda peça com pinos de alimentação e de terra na base tem pelo menos um
+   de cada ligado (ADR-019); sem isso, tirar o VCC de um módulo passaria despercebido;
+3. as regras: o motor de regras (``src/regras.py``, ADR-017) sobre o circuito;
+4. a placa: netlist, placa, posições, roteamento e DRC (``src/drc.py``), só se 1 a 3
    passaram, porque não adianta rotear um circuito que viola uma regra.
 
 Se houver problema, o código monta um relatório curto e estruturado (etapa, regra, onde,
@@ -18,6 +20,10 @@ Quem decide é o código: o agente só vê o relatório, e o relatório não tem
 ignorar nada. Uma regra que o motor não conseguiu verificar (falta um dado na base) também
 volta como problema, com o dado que falta: o agente pode trocar a ligação ou registrar uma
 pendência, mas o circuito não é aprovado sem o dado.
+
+``Laco`` guarda a conversa com o agente. Depois de um circuito aprovado, o fluxo completo
+(``src/projeto.py``) ainda pode mandar uma correção do usuário (a segunda aprovação) pela
+mesma conversa, e o código confere tudo de novo. ``corrigir`` é o laço de uma vez só.
 
 Uso (precisa da biblioteca anthropic e da chave em ANTHROPIC_API_KEY):
     python -m src.correcao [spec.yaml] [--sem-placa] [--modelo ...] [--esforco ...]
@@ -46,7 +52,7 @@ MAX_CORRECOES = 3
 MAX_PASSOS = 30
 # Mude a versão sempre que mudar SISTEMA_DE_CORRECAO, PEDIDO_DE_CORRECAO ou o contrato de
 # desconectar.
-VERSAO_DO_PROMPT = "1"
+VERSAO_DO_PROMPT = "2"
 
 SISTEMA_DE_CORRECAO = SISTEMA + """
 Depois que você terminar, o código confere o circuito: a netlist, as regras da base (o motor
@@ -61,7 +67,16 @@ quando acabar. Se não houver como corrigir com as peças da base, registre uma 
 
 {relatorio}"""
 
-Etapa = Literal["netlist", "regras", "drc"]
+PEDIDO_DO_USUARIO = """O usuário viu o resultado das verificações e pediu esta mudança no
+circuito, antes de gerar os arquivos da fábrica:
+
+{texto}
+
+Faça a mudança com as ferramentas (desconectar e conectar), sem inventar peças nem pinos. Se
+ela não puder ser feita com as peças da base, registre uma pendência e diga por quê. Depois,
+o código confere o circuito de novo."""
+
+Etapa = Literal["netlist", "alimentacao", "regras", "drc"]
 
 
 @dataclass(frozen=True)
@@ -106,6 +121,29 @@ def _da_netlist(erro: ErroGeracao) -> list[Problema]:
                      "corrija a ligação ou a peça apontada") for p in erro.problemas]
 
 
+def sem_alimentacao(circuito: dict, base: dict[str, Componente]) -> list[Problema]:
+    """Peças sem nenhum pino de alimentação, ou sem nenhum de terra, ligado.
+
+    Vale para os tipos que a peça tem na base: um módulo com VCC e GND precisa dos dois
+    ligados. Um só basta quando a peça tem vários (os três GND do ESP32 são o mesmo terra).
+    """
+    ligados: dict[str, set[str]] = {}
+    for lig in circuito["ligacoes"]:
+        ligados.setdefault(lig["ref"], set()).add(lig["nome"])
+    problemas = []
+    for ref, id_ in circuito["selecoes"].items():
+        comp = base[id_]
+        for tipo, rotulo in (("alimentacao", "alimentação"), ("terra", "terra")):
+            nomes = sorted({p.nome for p in comp.pinos if p.tipo == tipo})
+            if nomes and not ligados.get(ref, set()) & set(nomes):
+                problemas.append(Problema(
+                    "alimentacao", f"{tipo}-ligada", f"{ref} ({id_})",
+                    f"nenhum pino de {rotulo} de {ref} está ligado ({', '.join(nomes)}); "
+                    "sem isso a peça não funciona",
+                    f"ligue {' ou '.join(nomes)} de {ref} na rede de {rotulo} certa"))
+    return problemas
+
+
 def _das_regras(relatorio: Relatorio) -> list[Problema]:
     problemas = []
     for r in relatorio.resultados:
@@ -132,7 +170,7 @@ ConferirPlaca = Callable[[dict, int], ResultadoPlaca]
 
 def conferir(estado: dict, base: dict[str, Componente], wifi: bool | None, numero: int,
              placa: ConferirPlaca | None = None, custos: Custos | None = None) -> Rodada:
-    """Netlist, regras e (se as duas passarem e houver ``placa``) DRC do circuito."""
+    """Netlist, alimentação, regras e (se tudo passar e houver ``placa``) DRC do circuito."""
     custos = custos or Custos()
     inicio = time.monotonic()
     try:
@@ -141,6 +179,9 @@ def conferir(estado: dict, base: dict[str, Componente], wifi: bool | None, numer
         custos.operacao("netlist", "planejar", time.monotonic() - inicio,
                         f"{len(e.problemas)} problema(s)")
         return Rodada(numero, _da_netlist(e))
+    faltas = sem_alimentacao(estado, base)
+    if faltas:
+        return Rodada(numero, faltas)
     inicio = time.monotonic()
     relatorio = verificar(estado, base, wifi=wifi)
     problemas = _das_regras(relatorio)
@@ -170,55 +211,91 @@ def relatorio_para_o_agente(problemas: list[Problema]) -> str:
                       indent=1)
 
 
+class Laco:
+    """A conversa do laço de correção: o agente monta, o código confere, o agente corrige.
+
+    ``comecar`` roda o agente sobre a especificação e confere até aprovar ou parar.
+    ``pedido_do_usuario`` manda uma mudança pedida pelo usuário na mesma conversa e confere
+    de novo, com o mesmo limite de correções. Cada um devolve o ``ResultadoDoLaco`` daquela
+    vez; ``execucoes`` guarda todas as conversas.
+    """
+
+    def __init__(self, arquivo_spec: Path, spec: Especificacao, provedor: Provedor,
+                 base: dict[str, Componente] | None = None,
+                 placa: ConferirPlaca | None = None, max_correcoes: int = MAX_CORRECOES,
+                 custos: Custos | None = None,
+                 registrar: Callable[[str], None] | None = None,
+                 eventos: Callable[[Evento], None] | None = None):
+        self.arquivo_spec, self.provedor = arquivo_spec, provedor
+        self.base = carregar_todos() if base is None else base
+        self.placa, self.max_correcoes = placa, max_correcoes
+        self.custos = custos or Custos(spec.projeto.id)
+        self.registrar, self.eventos = registrar, eventos
+        self.wifi = spec.wifi.valor if spec.wifi else None
+        self.ferramentas = Ferramentas(self.base, spec, correcao=True)
+        self.execucoes: list[Execucao] = []
+
+    def _rodar(self, pedido: str, etapa: str, retomar: bool) -> None:
+        self.execucoes.append(conversar(
+            pedido, self.provedor, SISTEMA_DE_CORRECAO, CONTRATOS_DE_CORRECAO,
+            self.ferramentas.executar_ferramenta, max_passos=MAX_PASSOS,
+            registrar=self.registrar, eventos=self.custos.ouvinte(etapa, self.eventos),
+            retomar=retomar))
+
+    def comecar(self, depois_do_agente: Callable[[Ferramentas], None] | None = None
+                ) -> ResultadoDoLaco:
+        """``depois_do_agente`` roda uma vez, depois que o agente entrega o primeiro circuito
+        e antes da primeira conferência (os testes e o eval usam para injetar um erro)."""
+        self._rodar(montar_pedido(self.arquivo_spec), "agente", retomar=False)
+        if depois_do_agente is not None:
+            depois_do_agente(self.ferramentas)
+        return self._conferir_ate_parar()
+
+    def pedido_do_usuario(self, texto: str) -> ResultadoDoLaco:
+        """Uma mudança pedida pelo usuário, levada ao agente na mesma conversa."""
+        self._rodar(PEDIDO_DO_USUARIO.format(texto=texto.strip()), "revisao", retomar=True)
+        return self._conferir_ate_parar()
+
+    def _conferir_ate_parar(self) -> ResultadoDoLaco:
+        rodadas: list[Rodada] = []
+        anterior = None
+        while True:
+            estado = self.ferramentas.estado()
+            circuito = {"selecoes": estado["selecoes"], "ligacoes": estado["ligacoes"]}
+            rodada = conferir(circuito, self.base, self.wifi, len(rodadas), self.placa,
+                              self.custos)
+            rodadas.append(rodada)
+            if rodada.erro_da_placa:
+                motivo = "placa"
+            elif not rodada.problemas:
+                motivo = "aprovado"
+            elif not circuito["selecoes"]:
+                motivo = "sem_circuito"
+            elif anterior is not None and circuito == anterior:
+                motivo = "sem_mudanca"
+            elif rodada.numero >= self.max_correcoes:
+                motivo = "limite"
+            else:
+                anterior = circuito
+                pedido = PEDIDO_DE_CORRECAO.format(
+                    n=len(rodada.problemas), numero=rodada.numero + 1,
+                    maximo=self.max_correcoes,
+                    relatorio=relatorio_para_o_agente(rodada.problemas))
+                self._rodar(pedido, "correcao", retomar=True)
+                continue
+            return ResultadoDoLaco(motivo == "aprovado", motivo, rodadas, estado,
+                                   list(self.execucoes))
+
+
 def corrigir(arquivo_spec: Path, spec: Especificacao, provedor: Provedor,
              base: dict[str, Componente] | None = None, placa: ConferirPlaca | None = None,
              max_correcoes: int = MAX_CORRECOES, custos: Custos | None = None,
              registrar: Callable[[str], None] | None = None,
              eventos: Callable[[Evento], None] | None = None,
              depois_do_agente: Callable[[Ferramentas], None] | None = None) -> ResultadoDoLaco:
-    """O agente monta o circuito; o código confere; até ``max_correcoes`` pedidos de correção.
-
-    ``depois_do_agente`` roda uma vez, depois que o agente entrega o primeiro circuito e
-    antes da primeira conferência (os testes e o eval usam para injetar um erro)."""
-    base = carregar_todos() if base is None else base
-    custos = custos or Custos(spec.projeto.id)
-    wifi = spec.wifi.valor if spec.wifi else None
-    ferramentas = Ferramentas(base, spec, correcao=True)
-
-    def rodar(pedido: str, etapa: str, retomar: bool) -> Execucao:
-        return conversar(pedido, provedor, SISTEMA_DE_CORRECAO, CONTRATOS_DE_CORRECAO,
-                         ferramentas.executar_ferramenta, max_passos=MAX_PASSOS,
-                         registrar=registrar, eventos=custos.ouvinte(etapa, eventos),
-                         retomar=retomar)
-
-    execucoes = [rodar(montar_pedido(arquivo_spec), "agente", retomar=False)]
-    if depois_do_agente is not None:
-        depois_do_agente(ferramentas)
-    rodadas: list[Rodada] = []
-    anterior = None
-    while True:
-        estado = ferramentas.estado()
-        circuito = {"selecoes": estado["selecoes"], "ligacoes": estado["ligacoes"]}
-        rodada = conferir(circuito, base, wifi, len(rodadas), placa, custos)
-        rodadas.append(rodada)
-        if rodada.erro_da_placa:
-            motivo = "placa"
-        elif not rodada.problemas:
-            motivo = "aprovado"
-        elif not circuito["selecoes"]:
-            motivo = "sem_circuito"
-        elif anterior is not None and circuito == anterior:
-            motivo = "sem_mudanca"
-        elif rodada.numero >= max_correcoes:
-            motivo = "limite"
-        else:
-            anterior = circuito
-            pedido = PEDIDO_DE_CORRECAO.format(n=len(rodada.problemas),
-                                               numero=rodada.numero + 1, maximo=max_correcoes,
-                                               relatorio=relatorio_para_o_agente(rodada.problemas))
-            execucoes.append(rodar(pedido, "correcao", retomar=True))
-            continue
-        return ResultadoDoLaco(motivo == "aprovado", motivo, rodadas, estado, execucoes)
+    """O agente monta o circuito, o código confere, e até ``max_correcoes`` correções."""
+    return Laco(arquivo_spec, spec, provedor, base, placa, max_correcoes, custos, registrar,
+                eventos).comecar(depois_do_agente)
 
 
 def explicar(resultado: ResultadoDoLaco) -> str:
@@ -229,7 +306,8 @@ def explicar(resultado: ResultadoDoLaco) -> str:
         ultima = resultado.rodadas[-1]
         placa = (f" A placa roteada passou no DRC: {ultima.placa.placa}." if ultima.placa
                  else " O DRC não rodou (sem placa nesta execução).")
-        return f"O circuito passou na netlist e nas regras, depois de {feitas}.{placa}"
+        return (f"O circuito passou na netlist, na alimentação e nas regras, depois de "
+                f"{feitas}.{placa}")
     abertura = {
         "limite": f"O agente não resolveu os problemas em {feitas} (o limite é "
                   f"{MAX_CORRECOES}).",

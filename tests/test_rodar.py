@@ -102,7 +102,8 @@ def test_registrar_acrescenta_a_linha_na_tabela(tmp_path):
     assert "\n".join(tabela[:2]) == CABECALHO
     assert tabela[2].startswith("| 2026-11-14 | 1 |") and tabela[2].endswith("| teste |")
     assert "| 2 de 2 |" in tabela[3]
-    assert "(nenhuma rodada" not in texto
+    # A tabela do gabarito perde a linha de vazia; a do fluxo (ADR-019), mais abaixo, não muda.
+    assert "(nenhuma rodada" not in texto.split(MARCADOR)[1].split("## Fluxo completo")[0]
     assert texto.rstrip().endswith("## Notas\n\ntexto")
 
 

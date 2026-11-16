@@ -1,0 +1,7 @@
+# A mesma placa, dita de outro jeito e sem citar o display pelo nome.
+tipo: mesma_placa
+pedido: >-
+  Preciso de uma plaquinha que leia a umidade da terra de um vaso e mostre o valor numa
+  telinha de 16 caracteres por 2 linhas. O cérebro é um ESP32 ligado na USB do computador.
+respostas: []
+esperado: [fabrica, sem_placa]

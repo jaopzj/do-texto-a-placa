@@ -220,14 +220,19 @@ def _relatorio(rodada: Rodada) -> str:
 
 def registrar(rodada: Rodada, arquivo: Path = EVALS_MD, observacao: str = "") -> None:
     """Acrescenta a linha da rodada no fim da tabela de ``arquivo``."""
+    acrescentar_na_tabela(arquivo, MARCADOR, [rodada.linha_markdown(observacao)])
+
+
+def acrescentar_na_tabela(arquivo: Path, marcador: str, novas: list[str]) -> None:
+    """Acrescenta ``novas`` no fim da tabela que vem logo depois de ``marcador``, tirando a
+    linha "(nenhuma ...)" de tabela vazia. O eval do fluxo (``fluxo.py``) usa também."""
     texto = Path(arquivo).read_text(encoding="utf-8")
-    if MARCADOR not in texto:
+    if marcador not in texto:
         raise ValueError(f"{arquivo} não tem o marcador da tabela de rodadas")
-    antes, depois = texto.split(MARCADOR, 1)
+    antes, depois = texto.split(marcador, 1)
     tabela, resto = _separar_tabela(depois)
-    linhas = [ln for ln in tabela if not ln.startswith("| (nenhuma")]
-    linhas.append(rodada.linha_markdown(observacao))
-    Path(arquivo).write_text(antes + MARCADOR + "\n" + "\n".join(linhas) + "\n" + resto,
+    linhas = [ln for ln in tabela if not ln.startswith("| (nenhuma")] + list(novas)
+    Path(arquivo).write_text(antes + marcador + "\n" + "\n".join(linhas) + "\n" + resto,
                              encoding="utf-8")
 
 

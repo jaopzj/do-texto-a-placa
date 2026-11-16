@@ -62,6 +62,8 @@ class ResultadoPlaca:
     drc: tuple[ItemDRC, ...]
     placa: Path                  # a placa roteada
     relatorio: Path              # o JSON do DRC
+    netlist: Path | None = None  # a netlist do agente, que a fábrica usa (BOM e conferência)
+    posicoes: Path | None = None  # as posições aplicadas na placa
 
 
 def ler_drc(dados: dict) -> list[ItemDRC]:
@@ -113,12 +115,19 @@ def posicoes_do_agente(plano: Plano, gabarito: str, posicoes: dict) -> dict[str,
 Executar = Callable[[list[str]], subprocess.CompletedProcess]
 
 
-def _executar(comando: list[str]) -> subprocess.CompletedProcess:
+def executar_no_repositorio(comando: list[str]) -> subprocess.CompletedProcess:
+    """Roda um comando na raiz do repositório, com a saída capturada."""
     return subprocess.run(comando, cwd=RAIZ, capture_output=True, text=True)
 
 
+def resumo_da_falha(feito: subprocess.CompletedProcess) -> str:
+    """As últimas linhas da saída de um comando que falhou, numa linha só."""
+    saida = ((feito.stderr or "") + (feito.stdout or "")).strip().splitlines()
+    return " / ".join(saida[-5:]) or f"saiu com {feito.returncode}"
+
+
 def conferir_placa(estado: dict, pasta: Path, base: dict[str, Componente],
-                   executar: Executar = _executar,
+                   executar: Executar = executar_no_repositorio,
                    gerar: Callable[[dict, Path, dict], object] | None = None
                    ) -> ResultadoPlaca:
     """Netlist, placa, posições, roteamento e DRC do ``estado``, com os arquivos em ``pasta``.
@@ -151,10 +160,10 @@ def conferir_placa(estado: dict, pasta: Path, base: dict[str, Componente],
     for etapa, comando in passos:
         feito = executar(comando)
         if feito.returncode != 0:
-            saida = ((feito.stderr or "") + (feito.stdout or "")).strip().splitlines()
-            raise ErroPlaca(etapa, " / ".join(saida[-5:]) or f"saiu com {feito.returncode}")
+            raise ErroPlaca(etapa, resumo_da_falha(feito))
     try:
         dados = json.loads(relatorio.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as e:
         raise ErroPlaca("drc", f"não consegui ler {relatorio}: {e}") from None
-    return ResultadoPlaca(tuple(ler_drc(dados)), roteada, relatorio)
+    return ResultadoPlaca(tuple(ler_drc(dados)), roteada, relatorio, netlist,
+                          arquivo_posicoes)

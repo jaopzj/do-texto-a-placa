@@ -1,0 +1,10 @@
+# A frase da checagem da Parte 1 do Marco 5. Deve chegar aos arquivos da fábrica.
+tipo: mesma_placa
+pedido: quero um monitor de umidade do solo com ESP32 e um LCD
+# Respostas às perguntas do briefing, na ordem em que o agente perguntar. Depois delas, o
+# usuário do eval responde "não sei" e o agente usa os padrões do projeto (Parte 1, passo 3).
+respostas:
+  - Uma placa de desenvolvimento ESP32 encaixada em barra de pinos.
+  - Pela USB da própria placa de desenvolvimento.
+  - Um LCD 16x2 com adaptador I2C.
+esperado: [fabrica, sem_placa]

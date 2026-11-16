@@ -4,7 +4,7 @@ Plataforma de projeto de placas de circuito impresso conduzida por um agente de 
 o usuário descreve o hardware em português e o agente entrega a placa pronta para
 fabricação, usando o KiCad e verificações reais. A IA propõe, o código decide.
 
-Status: em estruturação (Marco 3, base de componentes).
+Status: Marco 5 (do pedido aos arquivos da fábrica, com duas aprovações).
 
 ## Requisitos
 
@@ -24,6 +24,7 @@ make posicionar  # gera a placa de referência com as peças nas posições de p
 make placa       # pipeline completo: netlist, placa, roteamento, DRC e arquivos da fábrica
 make testes      # roda os testes automáticos (pytest)
 make briefing PEDIDO="..."  # o agente transforma o pedido na especificação (Marco 5)
+make projeto PEDIDO="..."   # do pedido aos arquivos da fábrica, com duas aprovações (Marco 5)
 make shell       # abre um terminal dentro do container
 ```
 
@@ -254,6 +255,41 @@ python -m src.correcao placas/monitor-umidade/spec.yaml --sem-placa   # sem rote
 As rodadas ficam em `saida/correcao/<projeto>/` (`correcao.json`, `estado.json` e, por
 rodada que chegou ao DRC, a placa roteada e o `drc.json`).
 
+## Fluxo completo (`make projeto`)
+
+O fluxo completo (Marco 5; ADR-019) vai do pedido em português aos arquivos da fábrica, num
+comando só:
+
+1. o agente entende o pedido e faz até seis perguntas (o briefing);
+2. você aprova a especificação (`s`) ou escreve uma correção;
+3. o agente monta o circuito, e o código confere netlist, alimentação, regras e o DRC da
+   placa roteada, com até três correções;
+4. o relatório é gravado e você vê o resultado das verificações: `s` gera os arquivos da
+   fábrica, `n` para sem eles, e um texto volta ao agente como mudança no circuito;
+5. Gerbers, furação, posições e BOM são gerados e conferidos.
+
+Se faltar uma peça ou um dado na base, se o circuito não passar nas conferências, ou se a
+especificação pedir uma placa que o pipeline não faz, o fluxo para e explica no relatório,
+sem placa.
+
+```bash
+make configurar                   # uma vez só
+read -s ANTHROPIC_API_KEY && export ANTHROPIC_API_KEY   # só no terminal; nunca em arquivo
+make projeto PEDIDO="quero um monitor de umidade do solo com ESP32 e um LCD"
+```
+
+Tudo fica em `saida/projetos/<projeto>/`:
+
+- `relatorio.md`: o relatório do projeto;
+- `spec.yaml` e `briefing.yaml`: a especificação aprovada e a conversa;
+- `registro-briefing.txt` e `registro-agente.txt`: o registro completo do agente;
+- `placa/conferencia-<n>/`: netlist, placa roteada e DRC de cada conferência;
+- `fabrica/`: Gerbers, furação, `posicoes.csv` e `bom.csv`.
+
+Os custos vão para `saida/custos/<projeto>.jsonl` (`make custos PROJETO=<projeto>`). O eval
+do fluxo (`make eval-fluxo`) roda os pedidos de `src/evals/pedidos/` e os erros injetados, e
+registra em `docs/evals.md`.
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/testes.yml`) roda a cada push e pull request:
@@ -261,7 +297,9 @@ carrega a base e roda `tests/test_componentes.py`, `tests/test_especificacao.py`
 `tests/test_ferramentas.py`, `tests/test_agente.py`, `tests/test_comparar.py`,
 `tests/test_gerar_netlist.py`, `tests/test_rodar.py`, `tests/test_terminal.py`,
 `tests/test_briefing.py`, `tests/test_aprovacao.py`, `tests/test_regras.py`,
-`tests/test_custos.py` e `tests/test_correcao.py` (a parte que não precisa do SKiDL). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
+`tests/test_custos.py`, `tests/test_correcao.py`, `tests/test_fabrica.py`,
+`tests/test_relatorio.py`, `tests/test_projeto.py` e `tests/test_evals_fluxo.py` (a parte que
+não precisa do SKiDL nem do KiCad). Um YAML com erro deixa o pull request com X vermelho. O runner do GitHub não tem o KiCad, então os testes da netlist e da placa
 (e a conferência das bibliotecas do KiCad) rodam só no `make testes`, dentro do container.
 
 ## Estrutura

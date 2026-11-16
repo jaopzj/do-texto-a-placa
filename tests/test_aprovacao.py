@@ -1,15 +1,19 @@
-"""Testes da primeira aprovação (Marco 5, Parte 2; ADR-016).
+"""Testes das duas aprovações (Marco 5, Partes 2 e 5; ADR-016 e ADR-019).
 
 O resumo é montado a partir de uma especificação válida e da base; a resposta do usuário é
 uma lista de linhas. Nenhum modelo de IA é chamado. Rodam também no GitHub Actions.
 """
+from pathlib import Path
+
 import pytest
 
 from src.agente.ferramentas import Pendencia
-from src.aprovacao import (PERGUNTA, SEM_PRECOS, Veredito, interpretar, pedir_aprovacao,
-                           resumir, rotulo)
+from src.aprovacao import (PERGUNTA, SEM_PRECOS, Veredito, interpretar, interpretar_da_fabrica,
+                           pedir_aprovacao, pedir_segunda_aprovacao, resumir, rotulo,
+                           valor_da_decisao)
 from src.briefing import validar
 from src.componentes.carregar import carregar_todos
+from src.especificacao import ler_especificacao
 
 from exemplo_briefing import ENTREGA, entrega as _entrega
 
@@ -113,3 +117,30 @@ def test_pedir_aprovacao_deixa_o_cancelamento_para_quem_chamou(spec, base):
 
     with pytest.raises(EOFError):
         pedir_aprovacao(spec, base, ler=ler, escrever=lambda _t: None)
+
+
+# --- Segunda aprovação (Parte 5; ADR-019) -----------------------------------------------------
+
+@pytest.mark.parametrize("resposta,esperado", [
+    ("s", Veredito(aprovada=True)), (" SIM ", Veredito(aprovada=True)),
+    ("n", Veredito(aprovada=False)), ("Não", Veredito(aprovada=False)),
+    ("nao", Veredito(aprovada=False)),
+    ("use o IO35", Veredito(aprovada=False, correcao="use o IO35")),
+    ("  ", None)])
+def test_interpretar_da_fabrica(resposta, esperado):
+    assert interpretar_da_fabrica(resposta) == esperado
+
+
+def test_segunda_aprovacao_mostra_o_resumo_e_insiste_ate_ter_resposta():
+    respostas, escrito = ["", "n"], []
+    veredito = pedir_segunda_aprovacao("RESUMO DAS VERIFICAÇÕES", ler=lambda _: respostas.pop(0),
+                                       escrever=escrito.append)
+    assert veredito == Veredito(aprovada=False) and respostas == []
+    assert "RESUMO DAS VERIFICAÇÕES" in escrito[0]
+
+
+def test_wifi_tem_rotulo_e_valor():
+    spec = ler_especificacao(Path(__file__).resolve().parents[1] / "placas" /
+                             "monitor-umidade" / "spec.yaml")
+    assert rotulo("wifi", spec) == "Wi-Fi"
+    assert valor_da_decisao("wifi", spec, spec.wifi) == "ligado"
