@@ -197,7 +197,9 @@ def resumir(lancamentos: Iterable[Lancamento]) -> dict:
             "total": _somar(lancamentos)}
 
 
-def dolares(valor: float, completo: bool) -> str:
+def dolares(valor: float, completo: bool, chamadas_llm: int = 1) -> str:
+    if chamadas_llm == 0:
+        return "sem custo de API (nenhuma chamada ao modelo)"
     texto = f"US$ {valor:.4f} (calculado pela tabela de preços)"
     return texto if completo else texto + " + chamadas sem preço conhecido"
 
@@ -207,7 +209,7 @@ def texto_do_resumo(resumo: dict) -> str:
     for nome, s in list(resumo["etapas"].items()) + [("TOTAL", resumo["total"])]:
         linhas.append(f"{nome}: {s['chamadas_llm']} chamada(s) ao modelo, {s['operacoes']} "
                       f"operação(ões), tokens {s['tokens_entrada']} + {s['tokens_saida']}, "
-                      f"{dolares(s['custo_calculado_usd'], s['custo_completo'])}, "
+                      f"{dolares(s['custo_calculado_usd'], s['custo_completo'], s['chamadas_llm'])}, "
                       f"{s['segundos']:g} s")
     return "\n".join(linhas)
 

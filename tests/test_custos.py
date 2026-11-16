@@ -150,6 +150,15 @@ def test_terminal_json_e_filtro_por_execucao(tmp_path):
     assert json.loads(saida[0])["execucoes"] == 1
 
 
+def test_resumo_so_de_operacoes_diz_sem_custo_de_api(tmp_path):
+    c = Custos("p")
+    c.operacao("motor_de_regras", "verificar")
+    c.gravar(tmp_path)
+    saida = []
+    assert modulo.main(["p", "--pasta", str(tmp_path)], saida.append) == 0
+    assert "sem custo de API" in saida[-1] and "tabela de preços" not in saida[-1]
+
+
 def test_terminal_sem_arquivo(tmp_path):
     saida = []
     assert modulo.main(["nada", "--pasta", str(tmp_path)], saida.append) == 2
