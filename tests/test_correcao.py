@@ -47,10 +47,17 @@ REFERENCIA = {
 
 @pytest.fixture(scope="module")
 def base():
-    """A base real com a tensão do AOUT do sensor, que a base de verdade ainda não tem
-    (ADR-017). Sem isso, o circuito de referência nunca é aprovado."""
+    """A base real. Com a tensão do AOUT do sensor (0 a 3,0 V, ADR-017), o circuito de
+    referência é aprovado."""
+    return dict(BASE_REAL)
+
+
+def _sem_tensao_do_aout():
+    """A base como era antes do dado do datasheet: o AOUT do sensor sem tensao_max."""
     b = dict(BASE_REAL)
-    b[SENSOR] = b[SENSOR].model_copy(update={"nivel_logico": 3.3})
+    b[SENSOR] = b[SENSOR].model_copy(update={"pinos": [
+        p.model_copy(update={"tensao_max": None}) if p.nome == "AOUT" else p
+        for p in b[SENSOR].pinos]})
     return b
 
 
@@ -160,12 +167,12 @@ def test_agente_que_nao_muda_nada_para_antes(spec, base):
 
 
 def test_sem_o_dado_do_sensor_o_laco_nao_aprova(spec):
-    """Com a base real, falta a tensão do AOUT: o problema volta ao agente e o laço para."""
+    """Sem a tensão do AOUT na base, o problema volta ao agente e o laço para."""
     roteiro = Roteiro([_montar_referencia(), PRONTO,
                        Resposta(chamadas=_chamadas(("registrar_pendencia", {
                            "necessidade": "tensão da saída AOUT do sensor",
                            "motivo": "a base não tem o dado"}))), PRONTO])
-    resultado = _corrigir(spec, BASE_REAL, roteiro)
+    resultado = _corrigir(spec, _sem_tensao_do_aout(), roteiro)
     assert not resultado.aprovado and resultado.motivo == "sem_mudanca"
     assert "não verificável" in roteiro.mensagens[0]
     texto = explicar(resultado)
@@ -365,8 +372,7 @@ def test_caminho_de_verdade_do_circuito_de_referencia_passa_no_drc(tmp_path):
 
 # --- Terminal ---------------------------------------------------------------------------------
 
-def test_main_sem_placa(tmp_path, monkeypatch, base):
-    monkeypatch.setattr(correcao, "carregar_todos", lambda: base)
+def test_main_sem_placa(tmp_path):
     saida = []
     roteiro = Roteiro([_montar_referencia(), PRONTO])
     codigo = correcao.main([str(SPEC), "--sem-placa", "--saida", str(tmp_path), "--custos",
@@ -378,7 +384,8 @@ def test_main_sem_placa(tmp_path, monkeypatch, base):
     assert ler(tmp_path / "custos" / "monitor-umidade.jsonl")
 
 
-def test_main_nao_aprovado_sai_com_1(tmp_path):
+def test_main_nao_aprovado_sai_com_1(tmp_path, monkeypatch):
+    monkeypatch.setattr(correcao, "carregar_todos", _sem_tensao_do_aout)
     roteiro = Roteiro([_montar_referencia(), PRONTO, Resposta(texto="Não sei.")])
     codigo = correcao.main([str(SPEC), "--sem-placa", "--saida", str(tmp_path), "--custos",
                             str(tmp_path / "custos")], provedor=roteiro, escrever=lambda _: None)

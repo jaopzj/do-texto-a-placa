@@ -71,11 +71,11 @@ passos são os do `make placa`, com os mesmos scripts, e o DRC roda em JSON
 
 ## Consequências
 
-- Enquanto a base não tiver a tensão da saída AOUT do sensor (ADR-017), o circuito de
-  referência não é aprovado: a regra `gpio-not-5v-tolerant` volta como não verificável. O
-  agente não tem como resolver isso por ligação, e o laço para com `sem_mudanca` ou
-  `limite`, explicando o que falta. É o comportamento pedido: parar e explicar, em vez de
-  entregar uma placa sem a conferência.
+- Um dado que falta na base não tem solução por ligação. Antes do dado do AOUT do sensor
+  (ADR-017), a regra `gpio-not-5v-tolerant` voltava como não verificável, e o laço parava
+  com `sem_mudanca` ou `limite`, explicando o que faltava, em vez de entregar uma placa sem
+  a conferência. Um teste guarda esse caso. Com o dado, o circuito de referência passa nas
+  regras e segue até o DRC.
 - O DRC só aponta o que a placa mostra: folga, ligação sem trilha, peça fora do contorno. O
   agente controla as ligações, não o posicionamento, então um problema de posição (que é o
   da placa de referência) tende a terminar no limite, com a explicação.

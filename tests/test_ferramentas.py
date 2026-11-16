@@ -147,7 +147,11 @@ def test_leitura_nao_preenche_campo_ausente(f):
     comp = f.ler_dados_componente(SENSOR)["componente"]
     assert "nivel_logico" not in comp           # o YAML do sensor não tem esse campo
     assert "regras" not in comp and "conectores" not in comp
-    assert all("tensao_max" not in p and "funcoes" not in p for p in comp["pinos"])
+    assert all("funcoes" not in p for p in comp["pinos"])
+    # Só o AOUT tem tensao_max (0 a 3,0 V, do datasheet); GND e VCC continuam sem.
+    assert {p["nome"]: p.get("tensao_max") for p in comp["pinos"]} == {
+        "GND": None, "VCC": None, "AOUT": 3.0}
+    assert all("tensao_max" not in p for p in comp["pinos"] if p["nome"] != "AOUT")
 
 
 def test_leitura_devolve_copia(f, base):
