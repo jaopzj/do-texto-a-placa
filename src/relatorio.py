@@ -27,11 +27,11 @@ from .aprovacao import fonte_da_decisao, rotulo, valor_da_decisao
 from .componentes.modelo import Componente
 from .correcao import ResultadoDoLaco, Rodada
 from .custos import dolares
+from .drc import caminho_legivel
 from .especificacao import Especificacao
 from .fabrica import ResultadoFabrica
 from .gerar_netlist import ErroGeracao, planejar
 
-RAIZ = Path(__file__).resolve().parents[1]
 
 Situacao = Literal["pendencias", "reprovado", "aguardando", "recusado", "fabrica",
                    "falha_da_fabrica", "sem_placa"]
@@ -46,6 +46,8 @@ TITULOS: dict[str, str] = {
                          "conferência"),
     "sem_placa": "CIRCUITO APROVADO, SEM PLACA: execução sem roteamento nem DRC",
 }
+
+SEM_WIFI = "não informado na especificação"
 
 SITUACAO_DA_REGRA = {"ok": "ok", "violada": "**VIOLADA**",
                      "nao_verificavel": "**não verificável**", "manual": "manual"}
@@ -65,14 +67,6 @@ class Andamento:
     fabrica: ResultadoFabrica | None = None
     custos: dict | None = None                             # Custos.resumo()
     data: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
-
-
-def caminho_legivel(caminho: Path) -> str:
-    """O caminho a partir da raiz do repositório, quando ele está dentro dela."""
-    try:
-        return str(Path(caminho).resolve().relative_to(RAIZ))
-    except ValueError:
-        return str(caminho)
 
 
 def _celula(texto: object) -> str:
@@ -117,7 +111,7 @@ def _regras(laco: ResultadoDoLaco | None) -> list[str]:
                   f"**{'APROVADO' if r.aprovado else 'REPROVADO'}**, {c['ok']} ok, "
                   f"{c['violada']} violada(s), {c['nao_verificavel']} não verificável(is), "
                   f"{c['manual']} manual(is). Wi-Fi: "
-                  f"{'sim' if r.wifi else 'não' if r.wifi is False else 'não informado'}.")
+                  f"{'sim' if r.wifi else 'não' if r.wifi is False else SEM_WIFI}.")
     linhas.append("")
     tabela = []
     for res in r.resultados:

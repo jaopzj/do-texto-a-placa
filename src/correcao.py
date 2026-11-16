@@ -43,7 +43,7 @@ from .agente.laco import SISTEMA, Evento, Execucao, Provedor, conversar, montar_
 from .componentes.carregar import carregar_todos
 from .componentes.modelo import Componente
 from .custos import Custos
-from .drc import ErroPlaca, ResultadoPlaca
+from .drc import ErroPlaca, ResultadoPlaca, caminho_legivel
 from .especificacao import Especificacao
 from .gerar_netlist import ErroGeracao, planejar
 from .regras import Relatorio, verificar
@@ -304,7 +304,8 @@ def explicar(resultado: ResultadoDoLaco) -> str:
     feitas = f"{c} correção(ões) pedida(s) ao agente"
     if resultado.aprovado:
         ultima = resultado.rodadas[-1]
-        placa = (f" A placa roteada passou no DRC: {ultima.placa.placa}." if ultima.placa
+        placa = (f" A placa roteada passou no DRC: {caminho_legivel(ultima.placa.placa)}."
+                 if ultima.placa
                  else " O DRC não rodou (sem placa nesta execução).")
         return (f"O circuito passou na netlist, na alimentação e nas regras, depois de "
                 f"{feitas}.{placa}")

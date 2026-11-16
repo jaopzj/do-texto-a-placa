@@ -112,6 +112,14 @@ def posicoes_do_agente(plano: Plano, gabarito: str, posicoes: dict) -> dict[str,
     return resultado
 
 
+def caminho_legivel(caminho: Path) -> str:
+    """O caminho a partir da raiz do repositório, quando ele está dentro dela."""
+    try:
+        return str(Path(caminho).resolve().relative_to(RAIZ))
+    except ValueError:
+        return str(caminho)
+
+
 Executar = Callable[[list[str]], subprocess.CompletedProcess]
 
 
