@@ -51,6 +51,10 @@ class Pino(_Estrito):
                   "entrada_saida", "analogico", "nao_usado"]
     tensao_max: Volts | None = None      # em volts
     funcoes: list[Texto] = []            # ex.: ["ADC1_CH6"]
+    # Pino de sinal cujo nível acompanha a alimentação de outro pino da mesma peça (ex.: o
+    # canal HV1 do conversor trabalha na tensão do pino HV). É o nome desse pino de
+    # alimentação. O motor de regras usa para saber a tensão do sinal (ADR-017).
+    referencia: Texto | None = None
     fonte: Fonte
 
 
@@ -123,7 +127,20 @@ class Componente(_Estrito):
         if repetidas:
             raise ValueError(f"id de regra repetido: {repetidas}")
         self._conectores_consistentes()
+        self._referencias_consistentes()
         return self
+
+    def _referencias_consistentes(self) -> None:
+        alimentacao = [p.nome for p in self.pinos if p.tipo == "alimentacao"]
+        for p in self.pinos:
+            if p.referencia is None:
+                continue
+            if p.tipo in ("alimentacao", "terra", "nao_usado"):
+                raise ValueError(f"pino {p.numero} ({p.nome}): só pino de sinal tem referencia")
+            if alimentacao.count(p.referencia) != 1:
+                raise ValueError(
+                    f"pino {p.numero} ({p.nome}): a referencia {p.referencia!r} precisa ser o "
+                    f"nome de um único pino de alimentação da peça (existem: {alimentacao})")
 
     def _conectores_consistentes(self) -> None:
         if not self.conectores:

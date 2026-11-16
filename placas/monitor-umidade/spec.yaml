@@ -67,6 +67,17 @@ alimentacao:
   decidido_por: usuario
   fonte: {documento: "Do-texto-a-placa-proposta.pdf", pagina: 9}
 
+# Wi-Fi: a proposta (página 9) já conta com ele (é o motivo do requisito do ADC1 acima). O
+# john confirmou em 2026-11-16, Marco 5, Parte 3. O motor de regras usa este campo na regra
+# adc2-wifi do ESP32 (ADR-017).
+wifi:
+  valor: true
+  decidido_por: usuario
+  motivo: O monitor usa o Wi-Fi do ESP32.
+  fonte: {documento: "Do-texto-a-placa-proposta.pdf", pagina: 9}
+  regras:
+    - {componente: esp32-devkitc-v4, regra: adc2-wifi}
+
 restricoes:
   camadas:
     valor: 2
