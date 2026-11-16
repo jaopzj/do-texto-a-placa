@@ -1,0 +1,7 @@
+# A mesma placa com Wi-Fi: o sensor não pode ir num pino do ADC2 (regra adc2-wifi).
+tipo: mesma_placa
+pedido: >-
+  Quero medir a umidade do solo com um sensor capacitivo, mostrar a leitura num LCD 16x2 e
+  mandar os dados pelo Wi-Fi do ESP32.
+respostas: []
+esperado: [fabrica, sem_placa]

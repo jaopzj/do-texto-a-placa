@@ -15,7 +15,7 @@ import yaml
 from src import correcao
 from src.agente.contratos import CONTRATOS, CONTRATOS_DE_CORRECAO
 from src.agente.ferramentas import FERRAMENTAS, Ferramentas
-from src.agente.laco import Chamada, Resposta
+from src.agente.laco import Resposta
 from src.componentes.carregar import carregar_todos
 from src.correcao import (MAX_CORRECOES, Problema, conferir, corrigir, explicar,
                           relatorio_para_o_agente)
@@ -25,25 +25,13 @@ from src.drc import (GABARITO, POSICOES, ErroPlaca, ItemDRC, ResultadoPlaca, con
 from src.especificacao import ler_especificacao
 from src.gerar_netlist import planejar
 
+from exemplo_circuito import (CONV, ESP, PRONTO, SENSOR, Roteiro, chamadas as _chamadas,
+                              montar_referencia as _montar_referencia)
+
 RAIZ = Path(__file__).resolve().parents[1]
 SPEC = RAIZ / "placas" / "monitor-umidade" / "spec.yaml"
 DADOS = RAIZ / "tests" / "dados" / "regras"
 BASE_REAL = carregar_todos()
-
-ESP, LCD, SENSOR, CONV = ("esp32-devkitc-v4", "display-lcd-1602-i2c",
-                          "sensor-umidade-capacitivo", "conversor-nivel-logico-4-canais")
-SELECOES = {"U1": ESP, "LCD1": LCD, "S1": SENSOR, "U2": CONV}
-REFERENCIA = {
-    "+5V": [("U1", "5V"), ("LCD1", "VCC"), ("U2", "HV")],
-    "+3V3": [("U1", "3V3"), ("S1", "VCC"), ("U2", "LV")],
-    "GND": [("U1", "GND"), ("LCD1", "GND"), ("S1", "GND"), ("U2", "GND")],
-    "SENSOR": [("S1", "AOUT"), ("U1", "IO34")],
-    "SDA_3V3": [("U1", "IO21"), ("U2", "LV1")],
-    "SCL_3V3": [("U1", "IO22"), ("U2", "LV2")],
-    "SDA_5V": [("U2", "HV1"), ("LCD1", "SDA")],
-    "SCL_5V": [("U2", "HV2"), ("LCD1", "SCL")],
-}
-
 
 @pytest.fixture(scope="module")
 def base():
@@ -64,45 +52,6 @@ def _sem_tensao_do_aout():
 @pytest.fixture(scope="module")
 def spec(base):
     return ler_especificacao(SPEC, base)
-
-
-def _chamadas(*pares) -> tuple[Chamada, ...]:
-    return tuple(Chamada(nome, args, f"c{i}") for i, (nome, args) in enumerate(pares))
-
-
-def _montar_referencia():
-    pares = [("selecionar_componente", {"id": id_, "ref": ref}) for ref, id_ in SELECOES.items()]
-    pares += [("conectar", {"ref": ref, "pino": pino, "rede": rede})
-              for rede, pinos in REFERENCIA.items() for ref, pino in pinos]
-    return Resposta(chamadas=_chamadas(*pares))
-
-
-class Roteiro:
-    """Um provedor que devolve respostas prontas e guarda o que recebeu."""
-
-    def __init__(self, respostas):
-        self.respostas = list(respostas)
-        self.iniciados, self.mensagens, self.resultados = [], [], []
-
-    def _proxima(self):
-        if not self.respostas:
-            raise AssertionError("o roteiro acabou")
-        return self.respostas.pop(0)
-
-    def iniciar(self, sistema, contratos, pedido):
-        self.iniciados.append((sistema, contratos, pedido))
-        return self._proxima()
-
-    def continuar(self, resultados):
-        self.resultados.append(resultados)
-        return self._proxima()
-
-    def responder(self, texto):
-        self.mensagens.append(texto)
-        return self._proxima()
-
-
-PRONTO = Resposta(texto="Pronto.")
 
 
 def _corrigir(spec, base, roteiro, **extra):
@@ -390,3 +339,64 @@ def test_main_nao_aprovado_sai_com_1(tmp_path, monkeypatch):
     codigo = correcao.main([str(SPEC), "--sem-placa", "--saida", str(tmp_path), "--custos",
                             str(tmp_path / "custos")], provedor=roteiro, escrever=lambda _: None)
     assert codigo == 1
+
+
+# --- Alimentação e pedido do usuário (ADR-019) ------------------------------------------------
+
+def _referencia():
+    return json.loads((DADOS / "referencia.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("ref,nome,regra", [("S1", "VCC", "alimentacao-ligada"),
+                                            ("S1", "GND", "terra-ligada")])
+def test_peca_sem_alimentacao_e_apontada(base, ref, nome, regra):
+    estado = _referencia()
+    estado["ligacoes"] = [l for l in estado["ligacoes"]
+                          if (l["ref"], l["nome"]) != (ref, nome)]
+    [problema] = correcao.sem_alimentacao(estado, base)
+    assert problema.etapa == "alimentacao" and problema.regra == regra
+    assert problema.onde == f"{ref} ({SENSOR})" and nome in problema.correcao
+    rodada = conferir(estado, base, True, 0)
+    assert rodada.problemas == [problema] and rodada.regras is None   # para antes das regras
+
+
+def test_um_dos_gnd_do_esp32_basta(base):
+    estado = _referencia()
+    gnd = [l for l in estado["ligacoes"] if (l["ref"], l["nome"]) == ("U1", "GND")]
+    assert len(gnd) > 1
+    estado["ligacoes"] = [l for l in estado["ligacoes"] if l not in gnd[1:]]
+    assert correcao.sem_alimentacao(estado, base) == []
+
+
+def test_ligacao_tirada_depois_do_agente_e_detectada_e_corrigida(spec, base):
+    """O erro injetado do guia (Parte 6): tirar uma ligação depois que o agente termina."""
+    def tirar_vcc(ferramentas):
+        assert ferramentas.desconectar("S1", "VCC")["ok"]
+
+    roteiro = Roteiro([_montar_referencia(), PRONTO,
+                       Resposta(chamadas=_chamadas(("conectar", {"ref": "S1", "pino": "VCC",
+                                                                 "rede": "+3V3"}))), PRONTO])
+    resultado = _corrigir(spec, base, roteiro, depois_do_agente=tirar_vcc)
+    assert resultado.aprovado and resultado.correcoes == 1
+    problemas = json.loads(roteiro.mensagens[0][roteiro.mensagens[0].index("{"):])["problemas"]
+    assert [p["regra"] for p in problemas] == ["alimentacao-ligada"]
+
+
+def test_pedido_do_usuario_vai_na_mesma_conversa_e_e_conferido(spec, base):
+    roteiro = Roteiro([_montar_referencia(), PRONTO,
+                       Resposta(chamadas=_chamadas(("desconectar", {"ref": "U1", "pino": "IO34"}),
+                                                   ("conectar", {"ref": "U1", "pino": "IO25",
+                                                                 "rede": "SENSOR"}))),
+                       PRONTO, Resposta(chamadas=_chamadas(
+                           ("desconectar", {"ref": "U1", "pino": "IO25"}),
+                           ("conectar", {"ref": "U1", "pino": "IO34", "rede": "SENSOR"}))),
+                       PRONTO])
+    laco = correcao.Laco(SPEC, spec, roteiro, base, custos=Custos("monitor-umidade"))
+    assert laco.comecar().aprovado
+    # O usuário pede o IO25 (ADC2): o código reprova e o agente volta ao IO34.
+    resultado = laco.pedido_do_usuario("ligue o sensor no IO25")
+    assert resultado.aprovado and resultado.correcoes == 1
+    pedido, relatorio = roteiro.mensagens
+    assert pedido == correcao.PEDIDO_DO_USUARIO.format(texto="ligue o sensor no IO25")
+    assert "adc2-wifi" in relatorio
+    assert len(roteiro.iniciados) == 1 and len(laco.execucoes) == 3

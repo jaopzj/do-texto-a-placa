@@ -1,4 +1,4 @@
-"""A primeira aprovação do usuário (Marco 5, Parte 2 do guia do MVP; ADR-016).
+"""As duas aprovações do usuário (Marco 5, Partes 2 e 5 do guia do MVP; ADR-016 e ADR-019).
 
 Depois do briefing, antes de qualquer ligação, o usuário vê no terminal o que o agente
 entendeu: os componentes escolhidos, as decisões que o próprio agente tomou (as marcadas
@@ -8,6 +8,10 @@ responde ``s`` para seguir ou escreve uma correção em português, que volta pa
 Este módulo não chama nenhum modelo de IA: monta o resumo a partir da especificação já
 validada e da base de componentes, e interpreta a resposta. Quem leva a correção ao agente
 é o briefing (``src/briefing.py``).
+
+A segunda aprovação vem antes dos arquivos da fábrica: o usuário vê o resultado das
+verificações (montado pelo fluxo completo, ``src/projeto.py``) e responde ``s`` para gerar os
+arquivos, ``n`` para parar sem eles, ou escreve uma mudança no circuito, que volta ao agente.
 
 Uso:
     veredito = pedir_aprovacao(spec, base, pendencias)
@@ -26,13 +30,21 @@ APROVA = frozenset({"s", "sim"})
 
 PERGUNTA = "Responda s para seguir, ou escreva o que deve mudar: "
 
+# Na segunda aprovação, "n" para sem gerar os arquivos da fábrica.
+RECUSA = frozenset({"n", "nao", "não"})
+PERGUNTA_DA_FABRICA = ("Responda s para gerar os arquivos da fábrica, n para parar sem "
+                       "gerá-los, ou escreva o que deve mudar no circuito: ")
+
 ROTULOS = {"alimentacao": "alimentação", "restricoes.camadas": "camadas",
-           "restricoes.contorno": "contorno", "restricoes.montagem": "montagem"}
+           "restricoes.contorno": "contorno", "restricoes.montagem": "montagem",
+           "wifi": "Wi-Fi"}
 
 
 @dataclass(frozen=True)
 class Veredito:
-    """A resposta do usuário: aprovada, ou uma correção para o agente."""
+    """A resposta do usuário: aprovada, ou uma correção para o agente.
+
+    Na segunda aprovação, ``aprovada=False`` sem ``correcao`` é o ``n``: parar."""
     aprovada: bool
     correcao: str | None = None
 
@@ -47,6 +59,15 @@ def interpretar(resposta: str) -> Veredito | None:
     return Veredito(aprovada=False, correcao=texto)
 
 
+def interpretar_da_fabrica(resposta: str) -> Veredito | None:
+    """Como ``interpretar``, mais ``n`` (ou ``não``) para parar sem os arquivos da fábrica."""
+    veredito = interpretar(resposta)
+    if veredito is not None and veredito.correcao is not None \
+            and veredito.correcao.casefold() in RECUSA:
+        return Veredito(aprovada=False)
+    return veredito
+
+
 def rotulo(caminho: str, spec: Especificacao) -> str:
     """Nome legível de uma decisão: ``modulos.2`` vira ``módulo "display"``."""
     partes = caminho.split(".")
@@ -58,7 +79,7 @@ def rotulo(caminho: str, spec: Especificacao) -> str:
     return ROTULOS.get(caminho, caminho)
 
 
-def _valor(caminho: str, spec: Especificacao, decisao: Decisao) -> str:
+def valor_da_decisao(caminho: str, spec: Especificacao, decisao: Decisao) -> str:
     """O que foi decidido, em poucas palavras."""
     if caminho == "alimentacao":
         return f"{spec.alimentacao.origem}, {spec.alimentacao.tensao:g} V"
@@ -69,12 +90,14 @@ def _valor(caminho: str, spec: Especificacao, decisao: Decisao) -> str:
         return f"{c.largura:g} x {c.altura:g} mm"
     if caminho == "restricoes.montagem":
         return spec.restricoes.montagem.valor
+    if caminho == "wifi":
+        return "ligado" if spec.wifi.valor else "desligado"
     if hasattr(decisao, "componente"):
         return decisao.componente
     return decisao.descricao
 
 
-def _fonte(decisao: Decisao) -> str:
+def fonte_da_decisao(decisao: Decisao) -> str:
     partes = []
     if decisao.fonte is not None:
         pagina = f", p. {decisao.fonte.pagina}" if decisao.fonte.pagina else ""
@@ -108,9 +131,9 @@ def resumir(spec: Especificacao, base: dict[str, Componente],
     if not do_agente:
         linhas.append("  (nenhuma)")
     for caminho, d in do_agente:
-        linhas.append(f"  - {rotulo(caminho, spec)}: {_valor(caminho, spec, d)}")
+        linhas.append(f"  - {rotulo(caminho, spec)}: {valor_da_decisao(caminho, spec, d)}")
         linhas.append(f"      motivo: {' '.join(d.motivo.split())}")
-        linhas.append(f"      fonte: {_fonte(d)}")
+        linhas.append(f"      fonte: {fonte_da_decisao(d)}")
 
     linhas += ["", f"Pendências ({len(pendencias)}):"]
     if not pendencias:
@@ -133,5 +156,15 @@ def pedir_aprovacao(spec: Especificacao, base: dict[str, Componente],
     escrever("\n" + resumir(spec, base, pendencias) + "\n")
     while True:
         veredito = interpretar(ler(PERGUNTA))
+        if veredito is not None:
+            return veredito
+
+
+def pedir_segunda_aprovacao(resumo: str, ler: Callable[[str], str] = input,
+                            escrever: Callable[[str], None] = print) -> Veredito:
+    """Mostra o resultado das verificações e lê ``s``, ``n`` ou uma mudança no circuito."""
+    escrever("\n" + resumo + "\n")
+    while True:
+        veredito = interpretar_da_fabrica(ler(PERGUNTA_DA_FABRICA))
         if veredito is not None:
             return veredito

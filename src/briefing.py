@@ -492,6 +492,34 @@ def salvar(resultado: Resultado, pasta: Path) -> Path:
 
 # --- Terminal ---------------------------------------------------------------------------------
 
+def no_terminal(ler: Callable[[str], str], escrever: Callable[[str], None],
+                base: dict[str, Componente] | None = None,
+                antes_de_aprovar: Callable[[list], None] | None = None) -> Briefing:
+    """Um ``Briefing`` que faz as perguntas e pede a primeira aprovação pelo terminal.
+
+    ``antes_de_aprovar(pendencias)`` escreve algo logo antes do resumo (o fluxo completo
+    avisa ali o que acontece com pendências abertas)."""
+    # Entre uma resposta do usuário e a próxima pergunta, o modelo pode levar vários
+    # segundos (raciocínio e consultas à base). O aviso diz que nada travou.
+    def perguntar(pergunta: str, numero: int, maximo: int) -> str:
+        escrever(f"\nPergunta {numero} de {maximo}: {pergunta}")
+        resposta = ler("> ")
+        escrever(AGUARDE)
+        return resposta
+
+    def aprovar(spec: Especificacao, pendencias: list) -> Veredito:
+        if antes_de_aprovar is not None:
+            antes_de_aprovar(pendencias)
+        veredito = pedir_aprovacao(spec, briefing.base, pendencias, ler=ler,
+                                   escrever=escrever)
+        if not veredito.aprovada:
+            escrever(AGUARDE)
+        return veredito
+
+    briefing = Briefing(perguntar, aprovar, base)
+    return briefing
+
+
 def main(argumentos: list[str], provedor: Provedor | None = None,
          ler: Callable[[str], str] = input,
          escrever: Callable[[str], None] = lambda linha: print(linha, flush=True)) -> int:
@@ -533,22 +561,7 @@ def _conduzir(opcoes, provedor, ler, escrever, custos, Terminal, dolares) -> int
             from .agente.provedores.claude import ProvedorClaude
             provedor = ProvedorClaude(opcoes.modelo, esforco=opcoes.esforco)
 
-        # Entre uma resposta do usuário e a próxima pergunta, o modelo pode levar vários
-        # segundos (raciocínio e consultas à base). O aviso diz que nada travou.
-        def perguntar(pergunta: str, numero: int, maximo: int) -> str:
-            escrever(f"\nPergunta {numero} de {maximo}: {pergunta}")
-            resposta = ler("> ")
-            escrever(AGUARDE)
-            return resposta
-
-        def aprovar(spec: Especificacao, pendencias: list) -> Veredito:
-            veredito = pedir_aprovacao(spec, briefing.base, pendencias, ler=ler,
-                                       escrever=escrever)
-            if not veredito.aprovada:
-                escrever(AGUARDE)
-            return veredito
-
-        briefing = Briefing(perguntar, aprovar)
+        briefing = no_terminal(ler, escrever)
         terminal = Terminal(escrever)
         terminal.info(f"briefing · {opcoes.modelo} · esforço {opcoes.esforco}")
         escrever(AGUARDE)

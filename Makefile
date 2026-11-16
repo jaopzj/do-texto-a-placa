@@ -25,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell configurar netlist posicionar placa testes eval briefing regras custos correcao pcb rotear drc
+.PHONY: imagem versao shell configurar netlist posicionar placa testes eval briefing regras custos correcao projeto eval-fluxo pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -135,6 +135,26 @@ custos:
 correcao:
 	@test -n "$$ANTHROPIC_API_KEY" || { echo "Defina ANTHROPIC_API_KEY no terminal antes do make correcao."; exit 1; }
 	docker run --rm --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -e PYTHONUNBUFFERED=1 -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.correcao $(SPEC) --modelo $(MODELO) --esforco $(ESFORCO)
+
+# Fluxo completo (Marco 5; ADR-019): do pedido em português aos arquivos da fábrica, com as
+# duas aprovações. O agente faz as perguntas do briefing, você aprova a especificação, o
+# agente monta o circuito, o código confere netlist, alimentação, regras e o DRC (até 3
+# correções), mostra o resultado e pede a segunda aprovação antes dos Gerbers. É interativo
+# (docker -it) e chama a API da Anthropic, com a chave da variável ANTHROPIC_API_KEY.
+# Precisa do make configurar (uma vez). Tudo vai para saida/projetos/<projeto>/.
+# Ex.: make projeto PEDIDO="quero um monitor de umidade do solo com ESP32 e um LCD"
+projeto:
+	@test -n "$$ANTHROPIC_API_KEY" || { echo "Defina ANTHROPIC_API_KEY no terminal antes do make projeto."; exit 1; }
+	docker run --rm -it --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -e PYTHONUNBUFFERED=1 -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.projeto "$(PEDIDO)" --modelo $(MODELO) --esforco $(ESFORCO)
+
+# Eval do fluxo completo (Marco 5, Parte 6; ADR-019): os pedidos de src/evals/pedidos/ e os
+# erros injetados, com um usuário de roteiro. Chama a API (custa dinheiro).
+# Ex.: make eval-fluxo REGISTRAR=--registrar   (ou CASOS="--so 4-peca-fora-da-base")
+CASOS ?=
+REGISTRAR ?=
+eval-fluxo:
+	@test -n "$$ANTHROPIC_API_KEY" || { echo "Defina ANTHROPIC_API_KEY no terminal antes do make eval-fluxo."; exit 1; }
+	docker run --rm --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -e PYTHONUNBUFFERED=1 -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.evals.fluxo --modelo $(MODELO) --esforco $(ESFORCO) $(CASOS) $(REGISTRAR) --observacao "$(OBS)"
 
 # Gera a placa a partir da netlist (Caminho A: kinet2pcb). Marco 1 / M1-2.
 pcb:

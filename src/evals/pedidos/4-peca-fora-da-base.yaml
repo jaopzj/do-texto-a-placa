@@ -1,0 +1,8 @@
+# A base não tem relé nem bomba: o agente registra a pendência e nenhuma placa sai.
+tipo: peca_fora_da_base
+pedido: >-
+  Quero um monitor de umidade do solo com ESP32 e LCD que também ligue uma bomba d'água por
+  um relé quando a terra estiver seca.
+respostas:
+  - O relé é obrigatório, sem ele a placa não serve.
+esperado: [pendencias]

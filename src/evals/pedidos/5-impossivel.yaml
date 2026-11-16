@@ -1,0 +1,9 @@
+# Um pedido impossível com a base e o pipeline: tem de terminar com uma explicação, nunca com
+# uma placa errada.
+tipo: impossivel
+pedido: >-
+  Quero uma placa de 2 x 2 cm, alimentada por uma pilha AA de 1,5 V, que controle um motor
+  de 220 V e mostre vídeo numa tela colorida de 7 polegadas.
+respostas:
+  - Tem que ser exatamente 2 x 2 cm, com a pilha AA e o motor de 220 V.
+esperado: [pendencias, reprovado, sem_especificacao]
