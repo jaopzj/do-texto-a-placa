@@ -107,3 +107,24 @@ CONTRATOS: list[dict] = [
         },
     },
 ]
+
+
+# Só no laço de correção (Marco 5, Parte 4; ADR-018).
+CONTRATO_DESCONECTAR = {
+    "name": "desconectar",
+    "description": (
+        "Tira um pino de uma peça da rede em que ele está, para corrigir uma ligação que o "
+        "relatório de problemas apontou. O pino é o número ou o nome exato da base; um nome "
+        "usado em vários pinos (ex.: GND) tira todos eles. Depois, ligue o pino certo com "
+        "conectar."),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "ref": {**_TEXTO, "description": "referência dada em selecionar_componente"},
+            "pino": {"anyOf": [{"type": "integer", "minimum": 1}, _TEXTO],
+                     "description": "número ou nome do pino, como na base"},
+        },
+        "required": ["ref", "pino"],
+    },
+}
+CONTRATOS_DE_CORRECAO = [*CONTRATOS, CONTRATO_DESCONECTAR]

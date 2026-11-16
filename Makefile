@@ -25,7 +25,7 @@ PLACA ?= placas/teste/teste/teste.kicad_pcb
 # Placa roteada gerada pelo "make rotear" (round-trip Freerouting). Marco 1 / M1-4.
 PLACA_ROTEADA ?= placas/teste/teste/teste_roteada.kicad_pcb
 
-.PHONY: imagem versao shell configurar netlist posicionar placa testes eval briefing regras custos pcb rotear drc
+.PHONY: imagem versao shell configurar netlist posicionar placa testes eval briefing regras custos correcao pcb rotear drc
 
 imagem:
 	docker build -t $(IMAGEM) docker/
@@ -127,6 +127,14 @@ PROJETO ?= monitor-umidade
 DETALHE ?=
 custos:
 	$(RUN) python -m src.custos $(PROJETO) $(DETALHE)
+
+# Laço de correção (Marco 5, Parte 4; ADR-018): o agente monta o circuito, o código confere
+# netlist, regras e o DRC da placa roteada, e devolve os problemas ao agente (até 3
+# correções). Se não resolver, para e explica. Chama a API da Anthropic, como o make eval.
+# Ex.: make correcao  (ou SPEC=saida/briefing/<projeto>/spec.yaml)
+correcao:
+	@test -n "$$ANTHROPIC_API_KEY" || { echo "Defina ANTHROPIC_API_KEY no terminal antes do make correcao."; exit 1; }
+	docker run --rm --user $(shell id -u):$(shell id -g) $(AMBIENTE) -e ANTHROPIC_API_KEY -e PYTHONUNBUFFERED=1 -v "$(CURDIR)":/projeto -w /projeto $(IMAGEM) python -m src.correcao $(SPEC) --modelo $(MODELO) --esforco $(ESFORCO)
 
 # Gera a placa a partir da netlist (Caminho A: kinet2pcb). Marco 1 / M1-2.
 pcb:

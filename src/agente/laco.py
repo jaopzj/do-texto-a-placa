@@ -148,7 +148,8 @@ def conversar(pedido: str, provedor: Provedor, sistema: str, contratos: list[dic
               registrar: Callable[[str], None] | None = print,
               eventos: Callable[[Evento], None] | None = None,
               encerrar: Callable[[], bool] | None = None,
-              ao_parar: Callable[[Resposta], str | None] | None = None) -> Execucao:
+              ao_parar: Callable[[Resposta], str | None] | None = None,
+              retomar: bool = False) -> Execucao:
     """O laço PENSA -> AGE -> OBSERVA, sem saber quais são as ferramentas.
 
     ``executar(nome, argumentos)`` roda cada pedido do modelo e devolve o dicionário que
@@ -160,13 +161,18 @@ def conversar(pedido: str, provedor: Provedor, sistema: str, contratos: list[dic
     ``ao_parar(resposta)`` é chamado quando o modelo para sem pedir ferramenta. Se devolver
     um texto, ele vai ao modelo (``provedor.responder``) e o laço segue; se devolver
     ``None``, o laço termina. Sem ``ao_parar``, o laço termina, como no Marco 4.
+
+    Com ``retomar``, a conversa já existe no provedor: ``pedido`` vai como mensagem nova
+    (``provedor.responder``), sem ``iniciar`` de novo. É assim que o laço de correção devolve
+    o relatório de problemas ao agente (ADR-018).
     """
     log = registrar or (lambda _linha: None)
     avisar = eventos or (lambda _evento: None)
     execucao = Execucao(texto_final="", terminou=False, passos=0)
 
     inicio = time.monotonic()
-    resposta = provedor.iniciar(sistema, contratos, pedido)
+    resposta = (provedor.responder(pedido) if retomar
+                else provedor.iniciar(sistema, contratos, pedido))
     for passo in range(1, max_passos + 1):
         avisar(Evento("resposta", passo, resposta=resposta,
                       segundos=time.monotonic() - inicio))
