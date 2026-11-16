@@ -222,8 +222,7 @@ python -m src.regras saida/agente/monitor-umidade/estado.json --spec placas/moni
 ```
 
 O `python -m src.agente` roda o motor no fim e grava `estado.json` e `regras.json` em
-`saida/agente/<projeto>/`. Hoje o circuito de referência sai reprovado por um dado que falta
-na base: a tensão da saída AOUT do sensor, ligada ao IO34 do ESP32.
+`saida/agente/<projeto>/`. O circuito de referência é aprovado: 12 regras ok e 4 manuais.
 
 Cada execução (briefing, agente, motor) acrescenta o que custou em
 `saida/custos/<projeto>.jsonl`: cada resposta do modelo (modelo, tokens, custo e acumulado) e

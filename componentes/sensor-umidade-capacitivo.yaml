@@ -10,6 +10,8 @@ alimentacao_max: 5.5
 pinos:
   - { numero: 1, nome: GND,  tipo: terra,       fonte: { documento: 1662716326-hw-101-hw-moisture-sensor-v1-0.pdf, pagina: 2 } }
   - { numero: 2, nome: VCC,  tipo: alimentacao, fonte: { documento: 1662716326-hw-101-hw-moisture-sensor-v1-0.pdf, pagina: 2 } }
-  - { numero: 3, nome: AOUT, tipo: analogico,   fonte: { documento: 1662716326-hw-101-hw-moisture-sensor-v1-0.pdf, pagina: 2 } }
+  # tensao_max do AOUT: "Output Voltage: 0 ~ 3.0 VDC", no mesmo datasheet (informado pelo
+  # john em 2026-11-16, Marco 5; ADR-017).
+  - { numero: 3, nome: AOUT, tipo: analogico,   tensao_max: 3.0, fonte: { documento: 1662716326-hw-101-hw-moisture-sensor-v1-0.pdf, pagina: 2 } }
 
 status: revisado

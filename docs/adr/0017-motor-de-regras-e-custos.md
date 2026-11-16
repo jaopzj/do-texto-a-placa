@@ -103,10 +103,14 @@ evento de ferramenta ganhou o tempo que ela levou. A gravação acrescenta linha
 
 ## Consequências
 
-- O circuito de referência sai **reprovado**: 11 ok, 4 manuais e uma regra de `erro` não
-  verificável (`gpio-not-5v-tolerant`). A base não diz a tensão da saída AOUT do sensor
-  HW-101, que vai no IO34. Com esse dado (com fonte), o mesmo circuito passa: há um teste
-  com uma base de teste para isso. O motor não presume que a saída está abaixo de 3,3 V.
+- Na primeira versão, o circuito de referência saía **reprovado**: 11 ok, 4 manuais e uma
+  regra de `erro` não verificável (`gpio-not-5v-tolerant`), porque a base não dizia a tensão
+  da saída AOUT do sensor HW-101, que vai no IO34. O motor não presumiu que a saída ficava
+  abaixo de 3,3 V. O john achou o dado no datasheet do sensor ("Output Voltage: 0 ~ 3.0
+  VDC"), e o AOUT ganhou `tensao_max: 3.0`. Num pino analógico sem `referencia`, o motor usa o
+  `tensao_max` como a tensão máxima que ele põe na rede. Agora o circuito de referência é
+  aprovado (12 ok e 4 manuais), e um teste mostra que, sem o dado, a regra volta a ser não
+  verificável.
 - A base também não diz a tensão dos pull-ups do adaptador I2C do LCD. Por isso um LCD ligado
   direto no ESP32, sem conversor, sai não verificável (e reprovado), não aprovado.
 - `gpio-input-only` só pega o caso que dá para ver pelas ligações: um GPIO só de entrada numa

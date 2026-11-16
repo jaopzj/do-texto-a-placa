@@ -70,30 +70,44 @@ def _r(relatorio, regra, ref=None):
 
 # --- O circuito de referência -----------------------------------------------------------------
 
-def test_circuito_de_referencia():
+def _sem_tensao_do_aout(base=BASE):
+    """A base como era antes do dado do datasheet: o AOUT do sensor sem tensao_max."""
+    base = dict(base)
+    base[SENSOR] = base[SENSOR].model_copy(update={"pinos": [
+        p.model_copy(update={"tensao_max": None}) if p.nome == "AOUT" else p
+        for p in base[SENSOR].pinos]})
+    return base
+
+
+def test_circuito_de_referencia_e_aprovado():
     rel = verificar(_estado(), BASE, wifi=True)
     situacoes = {r.regra: r.situacao for r in rel.resultados}
     assert situacoes == {
         "gpio-input-only": "ok", "gpio-flash-reserved": "ok", "gpio-strapping": "ok",
-        "adc2-wifi": "ok", "gpio-not-5v-tolerant": "nao_verificavel",
+        "adc2-wifi": "ok", "gpio-not-5v-tolerant": "ok",
         "lcd-supply-voltage": "ok", "i2c-voltage-compatibility": "ok",
         "i2c-address": "manual", "lcd-display-format": "manual", "i2c-pullups": "manual",
         "level-shifter-dual-supply": "ok", "level-shifter-common-ground": "ok",
         "level-shifter-voltage-direction": "ok", "level-shifter-supply-order": "manual",
         "level-shifter-channel-mapping": "ok", "level-shifter-voltage-compatibility": "ok"}
-    # A base não diz a tensão da saída AOUT do sensor: o motor não presume que está certo.
-    [p] = _r(rel, "gpio-not-5v-tolerant").problemas
-    assert "S1:3 (AOUT)" in p.pinos and p.redes == ("SENSOR",)
-    assert not rel.aprovado
+    assert rel.aprovado
 
 
-def test_com_o_dado_do_sensor_o_circuito_de_referencia_passa():
-    """Se a base disser a tensão do sinal do sensor, o mesmo circuito é aprovado. (Base de
-    teste: o dado não está na base real.)"""
+def test_sem_a_tensao_do_aout_o_motor_nao_presume():
+    """Sem o dado do datasheet (0 a 3,0 V), a regra fica não verificável e reprova."""
+    rel = verificar(_estado(), _sem_tensao_do_aout(), wifi=True)
+    r = _r(rel, "gpio-not-5v-tolerant")
+    [p] = r.problemas
+    assert r.situacao == "nao_verificavel" and "S1:3 (AOUT)" in p.pinos
+    assert p.redes == ("SENSOR",) and not rel.aprovado
+
+
+def test_aout_acima_do_limite_do_gpio_violada():
     base = dict(BASE)
-    base[SENSOR] = base[SENSOR].model_copy(update={"nivel_logico": 3.3})
-    rel = verificar(_estado(), base, wifi=True)
-    assert rel.aprovado and _r(rel, "gpio-not-5v-tolerant").situacao == "ok"
+    base[SENSOR] = base[SENSOR].model_copy(update={"pinos": [
+        p.model_copy(update={"tensao_max": 5.0}) if p.nome == "AOUT" else p
+        for p in base[SENSOR].pinos]})
+    assert _r(verificar(_estado(), base, wifi=True), "gpio-not-5v-tolerant").situacao == "violada"
 
 
 # --- ESP32 ------------------------------------------------------------------------------------
@@ -360,7 +374,7 @@ def test_texto_mostra_violadas_primeiro():
 
 
 @pytest.mark.parametrize("caso, codigo, violada", [
-    ("referencia", 1, None), ("sensor-no-adc2", 1, "adc2-wifi"),
+    ("referencia", 0, None), ("sensor-no-adc2", 1, "adc2-wifi"),
     ("gpio-em-5v", 1, "gpio-not-5v-tolerant"), ("sem-conversor", 1, None),
     ("conversor-invertido", 1, "level-shifter-voltage-direction")])
 def test_terminal_com_os_exemplos(tmp_path, caso, codigo, violada):
@@ -419,8 +433,8 @@ def test_depois_do_agente_o_motor_confere_e_grava(tmp_path, capsys):
     custos = Custos("monitor-umidade")
     conferir_regras(_estado(), BASE, ler_especificacao(SPEC, BASE), tmp_path, custos)
     dados = json.loads((tmp_path / "regras.json").read_text(encoding="utf-8"))
-    assert dados["wifi"] is True and dados["contagem"]["ok"] == 11
+    assert dados["wifi"] is True and dados["contagem"]["ok"] == 12
     assert json.loads((tmp_path / "estado.json").read_text(encoding="utf-8"))["selecoes"]
     [l] = custos.lancamentos
-    assert l.etapa == "motor_de_regras" and "reprovado" in l.detalhe
+    assert l.etapa == "motor_de_regras" and "aprovado" in l.detalhe
     assert "=== MOTOR DE REGRAS ===" in capsys.readouterr().out

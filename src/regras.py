@@ -28,7 +28,8 @@ Tensões (em volts), sem nada de memória:
   pinos de alimentação citados por ``referencia``, HV e LV) não contam: eles seguem a tensão
   que recebem, e o ``tensao_max`` deles é o limite do lado, não uma tensão que eles põem;
 - a tensão de um pino de sinal vem do ``referencia`` dele (a tensão da rede do pino de
-  alimentação citado) ou, sem isso, do ``nivel_logico`` da peça;
+  alimentação citado); num pino analógico sem ``referencia``, do ``tensao_max`` dele (a saída
+  do sensor vai de 0 a 3,0 V); sem isso, do ``nivel_logico`` da peça;
 - o limite de um pino é o ``tensao_max`` dele.
 
 Uso:
@@ -229,10 +230,12 @@ class Circuito:
             if nivel.valor is None:
                 return Nivel(None, f"{p.rotulo} segue o pino {alim.nome}: {nivel.porque}")
             return nivel
+        if p.pino.tipo == "analogico" and p.pino.tensao_max is not None:
+            return Nivel(p.pino.tensao_max)      # a saída analógica vai até o tensao_max dela
         if p.peca.nivel_logico is not None:
             return Nivel(p.peca.nivel_logico)
         return Nivel(None, f"a base não diz a tensão do sinal de {p.rotulo} (nem nivel_logico "
-                           f"de {p.peca.id}, nem referencia do pino)")
+                           f"de {p.peca.id}, nem referencia ou tensao_max do pino)")
 
 
 def _lado(p: PinoLigado) -> bool:
